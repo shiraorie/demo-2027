@@ -69,3 +69,100 @@ br-rtr - ssh root@192.168.200.1
  
 <p align="center"><b>User name: m1</b></p>
 <p align="center"><b>Password: module1</b></p>
+
+ 
+### <p align="center"><b>Настройка имен устройств</b></p>
+
+По заданию необходимо настроить имена устройств согласно топологии, используя полные доменные имена.
+
+Для изменения имени устройства используем команду:
+
+```bash
+hostnamectl set-hostname <имя_устройства>.au-team.irpo; exec bash
+```
+
+Настраиваем имена на всех устройствах.
+
+<p align="center"><b>ISP</b></p>
+
+```bash
+hostnamectl set-hostname isp.au-team.irpo; exec bash
+```
+
+<p align="center">
+  <img src="images/1var/hostname-isp.png" width="600" />
+</p>
+
+<p align="center"><b>HQ-RTR</b></p>
+
+```bash
+hostnamectl set-hostname hq-rtr.au-team.irpo; exec bash
+```
+
+<p align="center">
+  <img src="images/1var/hostname-hq-rtr.png" width="600" />
+</p>
+
+<p align="center"><b>BR-RTR</b></p>
+
+```bash
+hostnamectl set-hostname br-rtr.au-team.irpo; exec bash
+```
+
+<p align="center">
+  <img src="images/1var/hostname-br-rtr.png" width="600" />
+</p>
+
+<p align="center"><b>HQ-SRV</b></p>
+
+```bash
+hostnamectl set-hostname hq-srv.au-team.irpo; exec bash
+```
+
+<p align="center">
+  <img src="images/1var/hostname-hq-srv.png" width="600" />
+</p>
+
+<p align="center"><b>BR-SRV</b></p>
+
+```bash
+hostnamectl set-hostname br-srv.au-team.irpo; exec bash
+```
+
+<p align="center">
+  <img src="images/1var/hostname-br-srv.png" width="600" />
+</p>
+
+<p align="center"><b>HQ-CLI</b></p>
+
+На клиентской машине сначала переходим в root:
+
+```bash
+su -
+```
+
+После этого меняем имя устройства:
+
+```bash
+hostnamectl set-hostname hq-cli.au-team.irpo; exec bash
+```
+
+<p align="center">
+  <img src="images/1var/hostname-hq-cli.png" width="600" />
+</p>
+
+<p align="center"><b>BR-FW</b></p>
+
+```bash
+hostnamectl set-hostname br-fw.au-team.irpo; exec bash
+```
+
+<p align="center">
+  <img src="images/1var/hostname-br-fw.png" width="600" />
+</p>
+
+> **Примечание:**
+> После выполнения команды имя устройства изменяется сразу благодаря `exec bash`.
+
+> **Примечание:**
+> Для устройств `HQ-RTR`, `BR-RTR`, `BR-FW`, `HQ-SRV`, `HQ-CLI` и `BR-SRV` используем домен `au-team.irpo` в соответствии с таблицей имен из задания.
