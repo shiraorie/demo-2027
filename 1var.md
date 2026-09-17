@@ -1110,3 +1110,248 @@ ping 192.168.100.2
 
 > **Примечание:**
 > OSPF-соседство между `HQ-RTR` и `BR-RTR` защищено MD5-аутентификацией с паролем `P@ssw0rd`.
+
+### <p align="center"><b>3. Создание локальных учетных записей</b></p>
+
+По заданию необходимо создать локальные учетные записи на серверах `HQ-SRV` и `BR-SRV`, а также на маршрутизаторах `HQ-RTR` и `BR-RTR`.
+
+На серверах создаётся пользователь `sshuser` с UID `2027`.
+
+На маршрутизаторах создаётся пользователь `net_admin`.
+
+Для всех пользователей используется пароль:
+
+```text
+P@ssw0rd
+```
+
+Также пользователи должны иметь возможность выполнять команды через `sudo` без ввода пароля.
+
+---
+
+### <p align="center"><b>Установка sudo</b></p>
+
+На `HQ-SRV`, `BR-SRV`, `HQ-RTR` и `BR-RTR` устанавливаем пакет `sudo`:
+
+```bash
+apt update
+apt install -y sudo
+```
+
+---
+
+<p align="center"><b>HQ-SRV</b></p>
+
+Создаём пользователя `sshuser` с UID `2027`:
+
+```bash
+useradd -m -u 2027 -s /bin/bash sshuser
+```
+
+Задаём пароль:
+
+```bash
+passwd sshuser
+```
+
+Пароль:
+
+```text
+P@ssw0rd
+```
+
+Добавляем пользователя в группу `sudo`:
+
+```bash
+usermod -aG sudo sshuser
+```
+
+<p align="center">
+  <img src="images/1var/user-sshuser-hq-srv.png" width="600" />
+</p>
+
+Создаём правило для запуска `sudo` без ввода пароля:
+
+```bash
+nano /etc/sudoers.d/sshuser
+```
+
+Добавляем:
+
+```text
+sshuser ALL=(ALL:ALL) NOPASSWD: ALL
+```
+
+Устанавливаем правильные права:
+
+```bash
+chmod 440 /etc/sudoers.d/sshuser
+```
+
+Проверяем пользователя:
+
+```bash
+id sshuser
+```
+
+Проверяем права `sudo`:
+
+```bash
+sudo -l -U sshuser
+```
+
+---
+
+<p align="center"><b>BR-SRV</b></p>
+
+Создаём пользователя:
+
+```bash
+useradd -m -u 2027 -s /bin/bash sshuser
+passwd sshuser
+usermod -aG sudo sshuser
+```
+
+Пароль:
+
+```text
+P@ssw0rd
+```
+
+Создаём файл:
+
+```bash
+nano /etc/sudoers.d/sshuser
+```
+
+Добавляем:
+
+```text
+sshuser ALL=(ALL:ALL) NOPASSWD: ALL
+```
+
+Устанавливаем права:
+
+```bash
+chmod 440 /etc/sudoers.d/sshuser
+```
+
+Проверяем:
+
+```bash
+id sshuser
+sudo -l -U sshuser
+```
+
+<p align="center">
+  <img src="images/1var/user-sshuser-br-srv.png" width="600" />
+</p>
+
+---
+
+<p align="center"><b>HQ-RTR</b></p>
+
+Создаём пользователя `net_admin`:
+
+```bash
+useradd -m -s /bin/bash net_admin
+```
+
+Задаём пароль:
+
+```bash
+passwd net_admin
+```
+
+Пароль:
+
+```text
+P@ssw0rd
+```
+
+Добавляем пользователя в группу `sudo`:
+
+```bash
+usermod -aG sudo net_admin
+```
+
+<p align="center">
+  <img src="images/1var/user-net-admin-hq-rtr.png" width="600" />
+</p>
+
+Создаём правило:
+
+```bash
+nano /etc/sudoers.d/net_admin
+```
+
+Добавляем:
+
+```text
+net_admin ALL=(ALL:ALL) NOPASSWD: ALL
+```
+
+Устанавливаем права:
+
+```bash
+chmod 440 /etc/sudoers.d/net_admin
+```
+
+Проверяем:
+
+```bash
+id net_admin
+sudo -l -U net_admin
+```
+
+---
+
+<p align="center"><b>BR-RTR</b></p>
+
+Создаём пользователя:
+
+```bash
+useradd -m -s /bin/bash net_admin
+passwd net_admin
+usermod -aG sudo net_admin
+```
+
+Пароль:
+
+```text
+P@ssw0rd
+```
+
+Создаём файл:
+
+```bash
+nano /etc/sudoers.d/net_admin
+```
+
+Добавляем:
+
+```text
+net_admin ALL=(ALL:ALL) NOPASSWD: ALL
+```
+
+Устанавливаем права:
+
+```bash
+chmod 440 /etc/sudoers.d/net_admin
+```
+
+Проверяем:
+
+```bash
+id net_admin
+sudo -l -U net_admin
+```
+
+<p align="center">
+  <img src="images/1var/user-net-admin-br-rtr.png" width="600" />
+</p>
+
+> **Примечание:**
+> Пользователь `sshuser` на `HQ-SRV` и `BR-SRV` имеет UID `2027` и может выполнять команды через `sudo` без ввода пароля.
+>
+> Пользователь `net_admin` на `HQ-RTR` и `BR-RTR` также имеет возможность выполнять команды через `sudo` без ввода пароля.
