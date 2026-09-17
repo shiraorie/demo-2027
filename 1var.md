@@ -501,3 +501,75 @@ nft list ruleset
 ```
 
 После этого `HQ-RTR` и `BR-RTR` должны иметь возможность выходить в Интернет через `ISP`.
+
+### <p align="center"><b>4. Настройка коммутации в сегменте HQ</b></p>
+
+По заданию необходимо:
+
+- трафик `HQ-SRV` поместить в VLAN 100;
+- трафик `HQ-CLI` поместить в VLAN 200;
+- предусмотреть VLAN 999 для управления;
+- маршрутизацию всех VLAN на `HQ-RTR` реализовать через один физический интерфейс.
+
+<p align="center"><b>HQ-RTR</b></p>
+
+Для связи с сегментом HQ используем один физический интерфейс `ens19`.
+
+Открываем конфигурацию:
+
+```bash
+nano /etc/network/interfaces
+```
+
+Настраиваем VLAN-подинтерфейсы:
+
+```text
+auto ens19
+iface ens19 inet manual
+
+auto ens19.100
+iface ens19.100 inet static
+    address 192.168.100.1/27
+    vlan-raw-device ens19
+
+auto ens19.200
+iface ens19.200 inet static
+    address 192.168.20.1/28
+    vlan-raw-device ens19
+
+auto ens19.999
+iface ens19.999 inet static
+    address 192.168.99.1/29
+    vlan-raw-device ens19
+```
+
+<p align="center">
+  <img src="images/1var/vlan-hq-rtr.png" width="600" />
+</p>
+
+После изменения конфигурации перезапускаем сеть:
+
+```bash
+systemctl restart networking
+```
+
+Проверяем созданные VLAN-интерфейсы:
+
+```bash
+ip -br a
+```
+
+<p align="center">
+  <img src="images/1var/vlan-check-hq-rtr.png" width="600" />
+</p>
+
+В результате должны быть доступны:
+
+```text
+ens19.100
+ens19.200
+ens19.999
+```
+
+> **Примечание:**
+> Все VLAN маршрутизируются через один физический интерфейс `ens19`, как и требуется по заданию.
