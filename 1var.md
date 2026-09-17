@@ -166,3 +166,193 @@ hostnamectl set-hostname br-fw.au-team.irpo; exec bash
 
 > **Примечание:**
 > Для устройств `HQ-RTR`, `BR-RTR`, `BR-FW`, `HQ-SRV`, `HQ-CLI` и `BR-SRV` используем домен `au-team.irpo` в соответствии с таблицей имен из задания.
+
+### <p align="center"><b>Настройка IP-адресации</b></p>
+
+Согласно заданию необходимо настроить IPv4-адресацию на устройствах.
+
+Для варианта 1 будем использовать следующую таблицу адресации:
+
+<p align="center">
+  <img src="images/1var/table-ip.png" width="700" />
+</p>
+
+> **Примечание:**
+> Для `HQ-CLI` адрес `192.168.20.2/28` указан в таблице как планируемый. Фактически адрес будет выдан позже по DHCP.
+
+---
+
+<p align="center"><b>HQ-RTR</b></p>
+
+На данном этапе настраиваем только интерфейс в сторону ISP.
+
+Интерфейс в сторону HQ оставляем без адресации, так как VLAN 100, 200 и 999 будут настроены позднее в отдельном пункте задания.
+
+Открываем конфигурацию сети:
+
+```bash
+nano /etc/network/interfaces
+```
+
+Настраиваем:
+
+```text
+auto ens18
+iface ens18 inet static
+    address 172.16.1.2/28
+    gateway 172.16.1.1
+
+auto ens19
+iface ens19 inet manual
+```
+
+<p align="center">
+  <img src="images/1var/network-int-hq-rtr.png" width="600" />
+</p>
+
+---
+
+<p align="center"><b>BR-RTR</b></p>
+
+Открываем конфигурацию сети:
+
+```bash
+nano /etc/network/interfaces
+```
+
+Настраиваем интерфейс в сторону ISP и интерфейс в сторону `BR-FW`:
+
+```text
+auto ens18
+iface ens18 inet static
+    address 172.16.2.2/28
+    gateway 172.16.2.1
+
+auto ens19
+iface ens19 inet static
+    address 192.168.30.1/30
+```
+
+<p align="center">
+  <img src="images/1var/network-int-br-rtr.png" width="600" />
+</p>
+
+---
+
+<p align="center"><b>HQ-SRV</b></p>
+
+Открываем конфигурацию сети:
+
+```bash
+nano /etc/network/interfaces
+```
+
+Настраиваем адрес сервера:
+
+```text
+auto ens18
+iface ens18 inet static
+    address 192.168.100.2/27
+    gateway 192.168.100.1
+```
+
+<p align="center">
+  <img src="images/1var/network-int-hq-srv.png" width="600" />
+</p>
+
+---
+
+<p align="center"><b>BR-SRV</b></p>
+
+Открываем конфигурацию сети:
+
+```bash
+nano /etc/network/interfaces
+```
+
+Настраиваем адрес сервера:
+
+```text
+auto ens18
+iface ens18 inet static
+    address 192.168.200.2/28
+    gateway 192.168.200.1
+```
+
+<p align="center">
+  <img src="images/1var/network-int-br-srv.png" width="600" />
+</p>
+
+---
+
+<p align="center"><b>BR-FW</b></p>
+
+Открываем конфигурацию сети:
+
+```bash
+nano /etc/network/interfaces
+```
+
+Настраиваем интерфейс в сторону `BR-RTR` и интерфейс в сторону `BR-SRV`:
+
+```text
+auto ens18
+iface ens18 inet static
+    address 192.168.30.2/30
+    gateway 192.168.30.1
+
+auto ens19
+iface ens19 inet static
+    address 192.168.200.1/28
+```
+
+<p align="center">
+  <img src="images/1var/network-int-br-fw.png" width="600" />
+</p>
+
+---
+
+<p align="center"><b>HQ-CLI</b></p>
+
+На данном этапе вручную статический адрес на `HQ-CLI` не настраиваем.
+
+Позднее по заданию на `HQ-RTR` будет настроен DHCP-сервер, который выдаст клиенту адрес из сети:
+
+```text
+192.168.20.0/28
+```
+
+Планируемый адрес клиента:
+
+```text
+192.168.20.2/28
+```
+
+Шлюз по умолчанию:
+
+```text
+192.168.20.1
+```
+
+---
+
+После изменения конфигурации сети на устройствах перезапускаем службу:
+
+```bash
+systemctl restart networking
+```
+
+Проверить назначенные адреса можно командой:
+
+```bash
+ip -br a
+```
+
+Проверить таблицу маршрутизации:
+
+```bash
+ip r
+```
+
+> **Примечание:**
+> Адреса для VLAN 100, VLAN 200 и VLAN 999 на `HQ-RTR` будут добавлены позднее при настройке коммутации.
