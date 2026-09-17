@@ -58,11 +58,11 @@ br-rtr - ssh root@192.168.200.1
 Итоговый отчет по окончании работы следует сохранить на диске рабочего места и задать имя файла - ФамилияУчастникаЗадание1 без учёта расширения.
 
 <p align="center">
-  <img src="images/module1/2. топология сети.png" width="600" />
+  <img src="images\1var\1. Таблица IP-адресов.png" width="600" />
 </p>
 
 <p align="center">
-  <img src="images/module1/1. Таблица IP-адресов.png" width="600" />
+  <img src="images\1var\2. Топология сети.png" width="600" />
 </p>
 
 <p align="center"><b>Чтобы зайти на стенд для 1 модуля.</b></p>
@@ -70,6 +70,7 @@ br-rtr - ssh root@192.168.200.1
 <p align="center"><b>User name: m1</b></p>
 <p align="center"><b>Password: module1</b></p>
 
+**ISP преднастроена, но включать ее надо**
  
 ### <p align="center"><b>Настройка имен устройств</b></p>
 
@@ -166,3 +167,4 @@ hostnamectl set-hostname br-fw.au-team.irpo; exec bash
 
 > **Примечание:**
 > Для устройств `HQ-RTR`, `BR-RTR`, `BR-FW`, `HQ-SRV`, `HQ-CLI` и `BR-SRV` используем домен `au-team.irpo` в соответствии с таблицей имен из задания.
+
