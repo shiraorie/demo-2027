@@ -1505,3 +1505,205 @@ Authorized access only
 > Благодаря параметру `AllowUsers sshuser` подключение по SSH разрешено только пользователю `sshuser`.
 >
 > Параметр `MaxAuthTries 2` ограничивает количество попыток аутентификации до двух.
+
+### <p align="center"><b>9. Настройка DHCP для HQ-CLI</b></p>
+
+По заданию необходимо настроить протокол динамической конфигурации хостов для сети в сторону `HQ-CLI`.
+
+В качестве DHCP-сервера используется `HQ-RTR`, клиентом является `HQ-CLI`.
+
+Для сети VLAN 200 используется подсеть:
+
+```text
+192.168.20.0/28
+```
+
+Адрес маршрутизатора:
+
+```text
+192.168.20.1
+```
+
+DNS-сервер:
+
+```text
+192.168.100.2
+```
+
+DNS-суффикс:
+
+```text
+au-team.irpo
+```
+
+### <p align="center"><b>Установка DHCP-сервера</b></p>
+
+На `HQ-RTR` устанавливаем DHCP-сервер:
+
+```bash
+apt update
+apt install -y isc-dhcp-server
+```
+
+> **ВНИМАНИЕ:**
+> Сразу после установки `isc-dhcp-server` служба может завершиться с ошибкой.
+> Это нормально, так как интерфейс и DHCP-подсеть ещё не настроены.
+> После заполнения `/etc/default/isc-dhcp-server` и `/etc/dhcp/dhcpd.conf` служба должна успешно запуститься.
+
+### <p align="center"><b>Выбор интерфейса DHCP-сервера</b></p>
+
+Открываем файл:
+
+```bash
+nano /etc/default/isc-dhcp-server
+```
+
+Для IPv4 указываем интерфейс VLAN 200:
+
+```text
+INTERFACESv4="ens19.200"
+```
+
+<p align="center">
+  <img src="images/1var/dhcp-interface-hq-rtr.png" width="700" />
+</p>
+
+### <p align="center"><b>Настройка DHCP-пула</b></p>
+
+Открываем основной конфигурационный файл:
+
+```bash
+nano /etc/dhcp/dhcpd.conf
+```
+
+В конец файла добавляем:
+
+```text
+authoritative;
+
+subnet 192.168.20.0 netmask 255.255.255.240 {
+    range 192.168.20.2 192.168.20.14;
+    option routers 192.168.20.1;
+    option domain-name-servers 192.168.100.2;
+    option domain-name "au-team.irpo";
+}
+```
+
+<p align="center">
+  <img src="images/1var/dhcp-config-hq-rtr.png" width="700" />
+</p>
+
+Адрес `192.168.20.1` принадлежит маршрутизатору `HQ-RTR` и в диапазон выдачи не входит.
+
+Диапазон DHCP:
+
+```text
+192.168.20.2 - 192.168.20.14
+```
+
+Шлюз по умолчанию:
+
+```text
+192.168.20.1
+```
+
+DNS-сервер:
+
+```text
+192.168.100.2
+```
+
+DNS-суффикс:
+
+```text
+au-team.irpo
+```
+
+### <p align="center"><b>Проверка и запуск DHCP-сервера</b></p>
+
+Проверяем конфигурацию:
+
+```bash
+dhcpd -t -cf /etc/dhcp/dhcpd.conf
+```
+
+Если ошибок нет, перезапускаем службу:
+
+```bash
+systemctl restart isc-dhcp-server
+```
+
+Добавляем службу в автозагрузку:
+
+```bash
+systemctl enable isc-dhcp-server
+```
+
+Проверяем статус:
+
+```bash
+systemctl status isc-dhcp-server
+```
+
+<p align="center">
+  <img src="images/1var/dhcp-status-hq-rtr.png" width="700" />
+</p>
+
+Служба должна находиться в состоянии:
+
+```text
+active (running)
+```
+
+### <p align="center"><b>Настройка HQ-CLI</b></p>
+
+На `HQ-CLI` сетевой интерфейс должен получать IPv4-адрес автоматически по DHCP.
+
+После получения адреса проверяем:
+
+```bash
+ip a
+```
+
+<p align="center">
+  <img src="images/1var/dhcp-hq-cli.png" width="800" />
+</p>
+
+На `HQ-CLI` должен быть получен адрес из сети:
+
+```text
+192.168.20.0/28
+```
+
+В нашем случае клиент получил:
+
+```text
+192.168.20.2/28
+```
+
+Проверить маршрут по умолчанию можно командой:
+
+```bash
+ip r
+```
+
+Ожидаемый шлюз:
+
+```text
+default via 192.168.20.1
+```
+
+Проверить DNS-настройки можно командой:
+
+```bash
+cat /etc/resolv.conf
+```
+
+DNS-сервером должен быть указан:
+
+```text
+192.168.100.2
+```
+
+> **Примечание:**
+> `HQ-RTR` выступает DHCP-сервером для VLAN 200, а `HQ-CLI` получает сетевые параметры автоматически.
