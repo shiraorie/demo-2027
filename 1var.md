@@ -673,3 +673,214 @@ ping 10.10.10.2
 </p>
 
 При успешной настройке адрес `10.10.10.2` должен отвечать без потерь.
+
+### <p align="center"><b>8. Настройка динамической трансляции адресов</b></p>
+
+По заданию необходимо настроить динамическую трансляцию адресов на маршрутизаторах `HQ-RTR` и `BR-RTR`, чтобы устройства обоих офисов имели доступ к сети Интернет.
+
+### <p align="center"><b>Включение пересылки IPv4</b></p>
+
+Для маршрутизации трафика на `HQ-RTR`, `BR-RTR` и `BR-FW` необходимо разрешить пересылку IPv4-пакетов.
+
+Открываем файл:
+
+```bash
+nano /etc/sysctl.conf
+```
+
+Добавляем или раскомментируем строку:
+
+```text
+net.ipv4.ip_forward=1
+```
+
+Применяем настройки:
+
+```bash
+sysctl -p
+```
+
+Проверяем:
+
+```bash
+sysctl net.ipv4.ip_forward
+```
+
+Ожидаемый результат:
+
+```text
+net.ipv4.ip_forward = 1
+```
+
+> **Примечание:**
+> `BR-FW` является промежуточным маршрутизатором между `BR-RTR` и сетью `BR-SRV`, поэтому IPv4 forwarding на нём также должен быть включён.
+
+---
+
+<p align="center"><b>HQ-RTR</b></p>
+
+Для выхода локальных сетей офиса HQ в Интернет настраиваем динамическую трансляцию адресов.
+
+Открываем:
+
+```bash
+nano /etc/nftables.conf
+```
+
+Настраиваем:
+
+```nft
+#!/usr/sbin/nft -f
+
+flush ruleset
+
+table inet filter {
+    chain input {
+        type filter hook input priority filter;
+    }
+
+    chain forward {
+        type filter hook forward priority filter;
+    }
+
+    chain output {
+        type filter hook output priority filter;
+    }
+}
+
+table inet nat {
+    chain POSTROUTING {
+        type nat hook postrouting priority srcnat;
+
+        oifname "ens18" ip saddr { 192.168.100.0/27, 192.168.20.0/28, 192.168.99.0/29 } masquerade
+    }
+}
+```
+
+<p align="center">
+  <img src="images/1var/nat-hq-rtr.png" width="600" />
+</p>
+
+---
+
+<p align="center"><b>BR-RTR</b></p>
+
+Для выхода сетей офиса BR в Интернет выполняем аналогичную настройку.
+
+Открываем:
+
+```bash
+nano /etc/nftables.conf
+```
+
+Настраиваем:
+
+```nft
+#!/usr/sbin/nft -f
+
+flush ruleset
+
+table inet filter {
+    chain input {
+        type filter hook input priority filter;
+    }
+
+    chain forward {
+        type filter hook forward priority filter;
+    }
+
+    chain output {
+        type filter hook output priority filter;
+    }
+}
+
+table inet nat {
+    chain POSTROUTING {
+        type nat hook postrouting priority srcnat;
+
+        oifname "ens18" ip saddr { 192.168.30.0/30, 192.168.200.0/28 } masquerade
+    }
+}
+```
+
+<p align="center">
+  <img src="images/1var/nat-br-rtr.png" width="600" />
+</p>
+
+---
+
+### <p align="center"><b>BR-FW</b></p>
+
+На `BR-FW` NAT не настраиваем.
+
+`BR-FW` только маршрутизирует трафик между сетью `BR-SRV` и `BR-RTR`.
+
+На интерфейсе в сторону `BR-RTR` ранее уже был настроен шлюз:
+
+```text
+gateway 192.168.30.1
+```
+
+Поэтому на `BR-FW` автоматически создаётся маршрут по умолчанию:
+
+```text
+default via 192.168.30.1
+```
+
+Проверить его можно командой:
+
+```bash
+ip r
+```
+
+> **Примечание:**
+> Динамическая трансляция адресов выполняется на `BR-RTR`, а `BR-FW` выступает промежуточным маршрутизатором между `192.168.200.0/28` и `BR-RTR`.
+
+---
+
+После настройки `nftables` на `HQ-RTR` и `BR-RTR` проверяем конфигурацию:
+
+```bash
+nft -c -f /etc/nftables.conf
+```
+
+Если ошибок нет, применяем:
+
+```bash
+nft -f /etc/nftables.conf
+```
+
+Добавляем службу в автозагрузку:
+
+```bash
+systemctl enable nftables
+```
+
+Перезапускаем:
+
+```bash
+systemctl restart nftables
+```
+
+Проверяем правила:
+
+```bash
+nft list ruleset
+```
+
+### <p align="center"><b>Проверка доступа в Интернет</b></p>
+
+Проверяем доступ в Интернет с `BR-FW`:
+
+```bash
+ping 77.88.8.8
+```
+
+<p align="center">
+  <img src="images/1var/internet-br-fw.png" width="600" />
+</p>
+
+Ответы от `77.88.8.8` подтверждают, что `BR-FW` имеет доступ в Интернет через `BR-RTR`.
+
+> **Примечание:**
+> Полный доступ `BR-SRV` к сети Интернет будет проверен после настройки OSPF, когда `BR-RTR` получит маршрут к сети `192.168.200.0/28` через `BR-FW`.
