@@ -1897,3 +1897,118 @@ nslookup ya.ru 192.168.100.2
 
 > **Примечание:**
 > `HQ-CLI` получает адрес DNS-сервера `192.168.100.2` по DHCP, поэтому после настройки `dnsmasq` клиент может использовать `HQ-SRV` как основной DNS-сервер.
+
+### <p align="center"><b>11. Настройка часового пояса</b></p>
+
+По заданию необходимо настроить часовой пояс на всех устройствах, за исключением виртуального коммутатора.
+
+Для места проведения экзамена используется часовой пояс:
+
+```text
+Asia/Yekaterinburg
+```
+
+На каждом устройстве выполняем:
+
+```bash
+timedatectl set-timezone Asia/Yekaterinburg
+```
+
+---
+
+<p align="center"><b>ISP</b></p>
+
+```bash
+timedatectl set-timezone Asia/Yekaterinburg
+```
+
+<p align="center">
+  <img src="images/1var/timezone-isp.png" width="600" />
+</p>
+
+---
+
+<p align="center"><b>HQ-RTR</b></p>
+
+```bash
+timedatectl set-timezone Asia/Yekaterinburg
+```
+
+<p align="center">
+  <img src="images/1var/timezone-hq-rtr.png" width="600" />
+</p>
+
+---
+
+<p align="center"><b>BR-RTR</b></p>
+
+```bash
+timedatectl set-timezone Asia/Yekaterinburg
+```
+
+<p align="center">
+  <img src="images/1var/timezone-br-rtr.png" width="600" />
+</p>
+
+---
+
+<p align="center"><b>HQ-SRV</b></p>
+
+```bash
+timedatectl set-timezone Asia/Yekaterinburg
+```
+
+<p align="center">
+  <img src="images/1var/timezone-hq-srv.png" width="600" />
+</p>
+
+---
+
+<p align="center"><b>HQ-CLI</b></p>
+
+```bash
+timedatectl set-timezone Asia/Yekaterinburg
+```
+
+<p align="center">
+  <img src="images/1var/timezone-hq-cli.png" width="600" />
+</p>
+
+---
+
+<p align="center"><b>BR-SRV</b></p>
+
+```bash
+timedatectl set-timezone Asia/Yekaterinburg
+```
+
+<p align="center">
+  <img src="images/1var/timezone-br-srv.png" width="600" />
+</p>
+
+---
+
+<p align="center"><b>BR-FW</b></p>
+
+```bash
+timedatectl set-timezone Asia/Yekaterinburg
+```
+
+<p align="center">
+  <img src="images/1var/timezone-br-fw.png" width="600" />
+</p>
+
+Проверить установленный часовой пояс можно командой:
+
+```bash
+timedatectl show -p Timezone
+```
+
+Ожидаемый результат:
+
+```text
+Timezone=Asia/Yekaterinburg
+```
+
+> **Примечание:**
+> Виртуальный коммутатор не настраиваем, так как по заданию часовой пояс требуется установить только на остальных устройствах.
