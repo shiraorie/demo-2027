@@ -1565,7 +1565,7 @@ INTERFACESv4="ens19.200"
 ```
 
 <p align="center">
-  <img src="images/1var/dhcp-interface-hq-rtr.png" width="700" />
+  <img src="images\1var\images1vardhcp-interface-hq-rtr.png" width="700" />
 </p>
 
 ### <p align="center"><b>Настройка DHCP-пула</b></p>
@@ -1590,7 +1590,7 @@ subnet 192.168.20.0 netmask 255.255.255.240 {
 ```
 
 <p align="center">
-  <img src="images/1var/dhcp-config-hq-rtr.png" width="700" />
+  <img src="images\1var\images1vardhcp-config-hq-rtr.png" width="700" />
 </p>
 
 Адрес `192.168.20.1` принадлежит маршрутизатору `HQ-RTR` и в диапазон выдачи не входит.
@@ -1646,7 +1646,7 @@ systemctl status isc-dhcp-server
 ```
 
 <p align="center">
-  <img src="images/1var/dhcp-status-hq-rtr.png" width="700" />
+  <img src="images\1var\images1vardhcp-status-hq-rtr.png" width="700" />
 </p>
 
 Служба должна находиться в состоянии:
@@ -1666,7 +1666,7 @@ ip a
 ```
 
 <p align="center">
-  <img src="images/1var/dhcp-hq-cli.png" width="800" />
+  <img src="images\1var\images1vardhcp-hq-cli.png" width="800" />
 </p>
 
 На `HQ-CLI` должен быть получен адрес из сети:
