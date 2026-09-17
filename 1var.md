@@ -1707,3 +1707,193 @@ DNS-сервером должен быть указан:
 
 > **Примечание:**
 > `HQ-RTR` выступает DHCP-сервером для VLAN 200, а `HQ-CLI` получает сетевые параметры автоматически.
+
+### <p align="center"><b>10. Настройка DNS на HQ-SRV</b></p>
+
+По заданию необходимо настроить инфраструктуру разрешения доменных имён для офисов HQ и BR.
+
+Основным DNS-сервером является `HQ-SRV`.
+
+DNS-сервер должен обеспечивать:
+
+- прямое разрешение имён в IP-адреса;
+- обратное разрешение IP-адресов в имена для `HQ-SRV` и `BR-SRV`;
+- пересылку внешних DNS-запросов на общедоступный DNS-сервер.
+
+В качестве DNS-сервера используем `dnsmasq`.
+
+### <p align="center"><b>Установка dnsmasq</b></p>
+
+На `HQ-SRV` устанавливаем пакет:
+
+```bash
+apt update
+apt install -y dnsmasq
+```
+
+### <p align="center"><b>Настройка локальной DNS-зоны</b></p>
+
+Создаём отдельный конфигурационный файл:
+
+```bash
+nano /etc/dnsmasq.d/au-team.conf
+```
+
+Добавляем:
+
+```text
+domain=au-team.irpo
+local=/au-team.irpo/
+
+server=77.88.8.7
+
+listen-address=127.0.0.1
+listen-address=192.168.100.2
+bind-interfaces
+
+address=/hq-rtr.au-team.irpo/192.168.100.1
+address=/br-rtr.au-team.irpo/192.168.30.1
+address=/br-fw.au-team.irpo/192.168.200.1
+address=/hq-srv.au-team.irpo/192.168.100.2
+address=/hq-cli.au-team.irpo/192.168.20.2
+address=/br-srv.au-team.irpo/192.168.200.2
+address=/docker.au-team.irpo/172.16.1.1
+address=/web.au-team.irpo/172.16.2.1
+```
+
+<p align="center">
+  <img src="images/1var/dnsmasq-config.png" width="700" />
+</p>
+
+В конфигурации:
+
+- локальный домен — `au-team.irpo`;
+- внешний DNS-сервер для пересылки — `77.88.8.7`;
+- `dnsmasq` принимает запросы на адресе `192.168.100.2`;
+- добавлены все необходимые A-записи согласно таблице задания.
+
+### <p align="center"><b>Настройка обратного разрешения имён</b></p>
+
+Для `HQ-SRV` и `BR-SRV` по заданию необходимо обеспечить PTR-разрешение.
+
+Открываем:
+
+```bash
+nano /etc/hosts
+```
+
+Добавляем:
+
+```text
+192.168.100.2 hq-srv.au-team.irpo hq-srv
+192.168.200.2 br-srv.au-team.irpo br-srv
+```
+
+<p align="center">
+  <img src="images/1var/dnsmasq-hosts.png" width="700" />
+</p>
+
+`dnsmasq` использует записи из `/etc/hosts`, поэтому для данных адресов будут доступны обратные DNS-запросы.
+
+### <p align="center"><b>Проверка конфигурации DNS</b></p>
+
+Проверяем синтаксис:
+
+```bash
+dnsmasq --test
+```
+
+При корректной конфигурации получаем:
+
+```text
+dnsmasq: syntax check OK.
+```
+
+Перезапускаем службу:
+
+```bash
+systemctl restart dnsmasq
+```
+
+Добавляем в автозагрузку:
+
+```bash
+systemctl enable dnsmasq
+```
+
+Проверяем статус:
+
+```bash
+systemctl status dnsmasq
+```
+
+<p align="center">
+  <img src="images/1var/dnsmasq-status.png" width="800" />
+</p>
+
+Служба должна находиться в состоянии:
+
+```text
+active (running)
+```
+
+### <p align="center"><b>Проверка прямого разрешения имён</b></p>
+
+Проверяем локальные DNS-записи через `HQ-SRV`:
+
+```bash
+nslookup hq-srv.au-team.irpo 192.168.100.2
+nslookup br-srv.au-team.irpo 192.168.100.2
+nslookup br-rtr.au-team.irpo 192.168.100.2
+nslookup docker.au-team.irpo 192.168.100.2
+nslookup web.au-team.irpo 192.168.100.2
+```
+
+<p align="center">
+  <img src="images/1var/dns-forward-check.png" width="700" />
+</p>
+
+DNS-сервер должен возвращать соответствующие IPv4-адреса устройств.
+
+> **Примечание:**
+> При использовании `nslookup` после корректного IPv4-ответа может дополнительно отображаться `NXDOMAIN`.
+> Это связано с дополнительными запросами, например AAAA-запросами.
+> Если строка `Address:` содержит правильный IPv4-адрес, A-запись работает корректно.
+
+### <p align="center"><b>Проверка обратного разрешения имён</b></p>
+
+Проверяем PTR-запись для `HQ-SRV`:
+
+```bash
+nslookup 192.168.100.2 192.168.100.2
+```
+
+Проверяем PTR-запись для `BR-SRV`:
+
+```bash
+nslookup 192.168.200.2 192.168.100.2
+```
+
+<p align="center">
+  <img src="images/1var/dns-reverse-check.png" width="700" />
+</p>
+
+В результате должны разрешаться имена:
+
+```text
+hq-srv.au-team.irpo
+br-srv.au-team.irpo
+```
+
+### <p align="center"><b>Проверка DNS-пересылки</b></p>
+
+Проверяем разрешение внешнего доменного имени:
+
+```bash
+nslookup ya.ru 192.168.100.2
+```
+
+Если возвращается внешний IP-адрес, пересылка DNS-запросов через `77.88.8.7` работает корректно.
+
+> **Примечание:**
+> `HQ-CLI` получает адрес DNS-сервера `192.168.100.2` по DHCP, поэтому после настройки `dnsmasq` клиент может использовать `HQ-SRV` как основной DNS-сервер.
