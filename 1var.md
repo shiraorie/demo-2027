@@ -27,8 +27,8 @@
 SSH Для подключения к стендам, выполняется с HQ-CLI. !!! ВНИМАНИЕ если не умееете не трогайте
 
 isp - ssh root@172.16.10.1
-hq-srv - ssh sshuser@192.168.100.2 -p 2011
-br-srv - ssh sshuser@192.168.200.2 -p 2011
+hq-srv - ssh sshuser@192.168.100.2 -p 2027
+br-srv - ssh sshuser@192.168.200.2 -p 2027
 hq-rtr - ssh root@192.168.100.1
 br-rtr - ssh root@192.168.200.1
 
@@ -1355,3 +1355,153 @@ sudo -l -U net_admin
 > Пользователь `sshuser` на `HQ-SRV` и `BR-SRV` имеет UID `2027` и может выполнять команды через `sudo` без ввода пароля.
 >
 > Пользователь `net_admin` на `HQ-RTR` и `BR-RTR` также имеет возможность выполнять команды через `sudo` без ввода пароля.
+
+### <p align="center"><b>5. Настройка безопасного удаленного доступа SSH</b></p>
+
+По заданию необходимо настроить безопасный удаленный доступ на серверах `HQ-SRV` и `BR-SRV`.
+
+Требования:
+
+- использовать порт `2027`;
+- разрешить подключение только пользователю `sshuser`;
+- ограничить количество попыток входа до двух;
+- настроить баннер `Authorized access only`.
+
+### <p align="center"><b>Установка SSH-сервера</b></p>
+
+По умолчанию SSH-сервер может быть не установлен, поэтому на `HQ-SRV` и `BR-SRV` устанавливаем пакет:
+
+```bash
+apt update
+apt install -y openssh-server
+```
+
+После установки включаем службу:
+
+```bash
+systemctl enable ssh
+systemctl start ssh
+```
+
+---
+
+<p align="center"><b>HQ-SRV</b></p>
+
+Открываем конфигурационный файл SSH:
+
+```bash
+nano /etc/ssh/sshd_config
+```
+
+**В самый конец файла** добавляем:
+
+```text
+Port 2027
+AllowUsers sshuser
+MaxAuthTries 2
+Banner /etc/issue.net
+```
+
+<p align="center">
+  <img src="images/1var/ssh-hq-srv.png" width="600" />
+</p>
+
+---
+
+<p align="center"><b>BR-SRV</b></p>
+
+Открываем:
+
+```bash
+nano /etc/ssh/sshd_config
+```
+
+**В самый конец файла** добавляем:
+
+```text
+Port 2027
+AllowUsers sshuser
+MaxAuthTries 2
+Banner /etc/issue.net
+```
+
+<p align="center">
+  <img src="images/1var/ssh-br-srv.png" width="600" />
+</p>
+
+### <p align="center"><b>Настройка SSH-баннера</b></p>
+
+На обоих серверах создаём файл баннера:
+
+```bash
+nano /etc/issue.net
+```
+
+Добавляем строку:
+
+```text
+Authorized access only
+```
+
+<p align="center">
+  <img src="images/1var/issue.png" width="600" />
+</p>
+
+Проверяем корректность конфигурации SSH:
+
+```bash
+sshd -t
+```
+
+Если команда не выводит ошибок, перезапускаем SSH:
+
+```bash
+systemctl restart ssh
+```
+
+Проверяем, что SSH слушает порт `2027`:
+
+```bash
+ss -tulpn | grep 2027
+```
+
+### <p align="center"><b>Проверка подключения к HQ-SRV</b></p>
+
+Подключаемся к `HQ-SRV` по SSH:
+
+```bash
+ssh sshuser@192.168.100.2 -p 2027
+```
+
+При подключении должен появиться баннер:
+
+```text
+Authorized access only
+```
+
+<p align="center">
+  <img src="images/1var/ssh-check-hq-srv.png" width="700" />
+</p>
+
+### <p align="center"><b>Проверка подключения к BR-SRV</b></p>
+
+Подключаемся к `BR-SRV` по SSH:
+
+```bash
+ssh sshuser@192.168.200.2 -p 2027
+```
+
+При подключении также должен появиться баннер:
+
+```text
+Authorized access only
+```
+
+<p align="center">
+  <img src="images/1var/ssh-check-br-srv.png" width="700" />
+</p>
+
+> **Примечание:**
+> Благодаря параметру `AllowUsers sshuser` подключение по SSH разрешено только пользователю `sshuser`.
+>
+> Параметр `MaxAuthTries 2` ограничивает количество попыток аутентификации до двух.
