@@ -884,3 +884,229 @@ ping 77.88.8.8
 
 > **Примечание:**
 > Полный доступ `BR-SRV` к сети Интернет будет проверен после настройки OSPF, когда `BR-RTR` получит маршрут к сети `192.168.200.0/28` через `BR-FW`.
+
+### <p align="center"><b>7. Настройка динамической маршрутизации OSPF</b></p>
+
+По заданию необходимо настроить динамическую маршрутизацию между `HQ-RTR`, `BR-RTR` и `BR-FW` с использованием протокола OSPF.
+
+На `HQ-RTR` и `BR-RTR` обмен маршрутами между офисами выполняется через GRE-туннель.
+
+На `BR-FW` OSPF используется только на интерфейсе в сторону `BR-RTR`.
+
+Для защиты OSPF-соседства между `HQ-RTR` и `BR-RTR` используется MD5-аутентификация с паролем:
+
+```text
+P@ssw0rd
+```
+
+### <p align="center"><b>Установка и включение OSPF</b></p>
+
+На `HQ-RTR`, `BR-RTR` и `BR-FW` устанавливаем FRR:
+
+```bash
+apt update
+apt install -y frr
+```
+
+Открываем файл:
+
+```bash
+nano /etc/frr/daemons
+```
+
+Включаем демон OSPF:
+
+```text
+ospfd=yes
+```
+
+<p align="center">
+  <img src="images/1var/ospfd-yes.png" width="600" />
+</p>
+
+Перезапускаем FRR:
+
+```bash
+systemctl restart frr
+systemctl enable frr
+```
+
+---
+
+<p align="center"><b>HQ-RTR</b></p>
+
+Заходим в консоль FRR:
+
+```bash
+vtysh
+```
+
+Настраиваем OSPF:
+
+```text
+configure terminal
+
+router ospf
+ passive-interface default
+ network 10.10.10.0/30 area 0
+ network 192.168.100.0/27 area 0
+ network 192.168.20.0/28 area 0
+ network 192.168.99.0/29 area 0
+exit
+
+interface gre1
+ no ip ospf passive
+ ip ospf authentication message-digest
+ ip ospf message-digest-key 1 md5 P@ssw0rd
+exit
+
+end
+write memory
+```
+
+<p align="center">
+  <img src="images/1var/ospf-hq-rtr.png" width="600" />
+</p>
+
+Таким образом, локальные сети HQ анонсируются в OSPF, но OSPF-соседство формируется только через `gre1`.
+
+---
+
+<p align="center"><b>BR-RTR</b></p>
+
+Заходим в FRR:
+
+```bash
+vtysh
+```
+
+Настраиваем:
+
+```text
+configure terminal
+
+router ospf
+ passive-interface default
+ network 10.10.10.0/30 area 0
+ network 192.168.30.0/30 area 0
+exit
+
+interface gre1
+ ip ospf authentication message-digest
+ ip ospf message-digest-key 1 md5 P@ssw0rd
+ no ip ospf passive
+exit
+
+interface ens19
+ no ip ospf passive
+exit
+
+end
+write memory
+```
+
+<p align="center">
+  <img src="images/1var/ospf-br-rtr.png" width="600" />
+</p>
+
+На `BR-RTR` OSPF-соседство формируется через `gre1` с `HQ-RTR` и через `ens19` с `BR-FW`.
+
+---
+
+<p align="center"><b>BR-FW</b></p>
+
+Заходим в FRR:
+
+```bash
+vtysh
+```
+
+Настраиваем:
+
+```text
+configure terminal
+
+router ospf
+ passive-interface default
+ network 192.168.30.0/30 area 0
+ network 192.168.200.0/28 area 0
+exit
+
+interface ens18
+ no ip ospf passive
+exit
+
+end
+write memory
+```
+
+<p align="center">
+  <img src="images/1var/ospf-br-fw.png" width="600" />
+</p>
+
+На `BR-FW` OSPF-соседство формируется только через `ens18` в сторону `BR-RTR`. Сеть `192.168.200.0/28` при этом анонсируется в OSPF.
+
+### <p align="center"><b>Проверка OSPF-соседства</b></p>
+
+На `BR-RTR` проверяем соседей:
+
+```bash
+vtysh -c "show ip ospf neighbor"
+```
+
+<p align="center">
+  <img src="images/1var/show-ip-ospf-nei.png" width="600" />
+</p>
+
+В таблице должны присутствовать два соседа: `HQ-RTR` через `gre1` и `BR-FW` через `ens19`. Состояние соседства должно быть `Full`.
+
+### <p align="center"><b>Проверка полученных маршрутов</b></p>
+
+На `BR-RTR` выполняем:
+
+```bash
+vtysh -c "show ip route ospf"
+```
+
+<p align="center">
+  <img src="images/1var/show-ip-route-ospf.png" width="700" />
+</p>
+
+На `HQ-RTR` выполняем:
+
+```bash
+vtysh -c "show ip route ospf"
+```
+
+<p align="center">
+  <img src="images/1var/show-ip-route-ospf-hq.png" width="700" />
+</p>
+
+На `HQ-RTR` должны быть получены маршруты `192.168.30.0/30` и `192.168.200.0/28` через `BR-RTR`.
+
+### <p align="center"><b>Проверка связности между офисами</b></p>
+
+Проверяем доступ от `HQ-RTR` до `BR-SRV`:
+
+```bash
+ping 192.168.200.2
+```
+
+<p align="center">
+  <img src="images/1var/ping-202.png" width="600" />
+</p>
+
+Проверяем доступ от `BR-SRV` до `HQ-SRV`:
+
+```bash
+ping 192.168.100.2
+```
+
+<p align="center">
+  <img src="images/1var/ping-102.png" width="600" />
+</p>
+
+Успешный обмен ICMP-пакетами в обе стороны подтверждает корректную работу GRE-туннеля, OSPF и маршрутизации между офисами.
+
+> **Примечание:**
+> OSPF-соседство между `HQ-RTR` и `BR-RTR` защищено MD5-аутентификацией с паролем `P@ssw0rd`.
