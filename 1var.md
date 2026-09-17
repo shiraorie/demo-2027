@@ -357,3 +357,147 @@ ip r
 
 > **Примечание:**
 > Адреса для VLAN 100, VLAN 200 и VLAN 999 на `HQ-RTR` будут добавлены позднее при настройке коммутации.
+
+### <p align="center"><b>2. Настройка доступа к сети Интернет на ISP</b></p>
+
+По заданию необходимо настроить маршрутизатор `ISP`:
+
+- интерфейс в сторону магистрального провайдера должен получать адрес по DHCP;
+- интерфейс в сторону `HQ-RTR` должен находиться в сети `172.16.1.0/28`;
+- интерфейс в сторону `BR-RTR` должен находиться в сети `172.16.2.0/28`;
+- необходимо разрешить маршрутизацию пакетов;
+- настроить динамическую трансляцию адресов для выхода `HQ-RTR` и `BR-RTR` в Интернет.
+
+<p align="center"><b>ISP</b></p>
+
+Открываем файл конфигурации сетевых интерфейсов:
+
+```bash
+nano /etc/network/interfaces
+```
+
+Настраиваем интерфейсы следующим образом:
+
+```text
+auto ens18
+iface ens18 inet dhcp
+
+auto ens19
+iface ens19 inet static
+    address 172.16.1.1/28
+
+auto ens20
+iface ens20 inet static
+    address 172.16.2.1/28
+```
+
+<p align="center">
+  <img src="images/1var/network-int-isp.png" width="600" />
+</p>
+
+Где:
+
+- `ens18` — интерфейс в сторону магистрального провайдера;
+- `ens19` — интерфейс в сторону `HQ-RTR`;
+- `ens20` — интерфейс в сторону `BR-RTR`.
+
+После изменения конфигурации перезапускаем сеть:
+
+```bash
+systemctl restart networking
+```
+
+### <p align="center"><b>Включаем пересылку пакетов на ISP</b></p>
+
+Чтобы `ISP` мог пересылать пакеты между своими интерфейсами, включаем IPv4 forwarding.
+
+Открываем файл:
+
+```bash
+nano /etc/sysctl.conf
+```
+
+Раскомментируем или добавим строку:
+
+```text
+net.ipv4.ip_forward=1
+```
+
+<p align="center">
+  <img src="images/1var/isp-sysctl.png" width="600" />
+</p>
+
+Применяем изменения:
+
+```bash
+sysctl -p
+```
+
+### <p align="center"><b>Настройка NAT на ISP</b></p>
+
+Для выхода маршрутизаторов `HQ-RTR` и `BR-RTR` в Интернет настроим динамическую трансляцию адресов с помощью `nftables`.
+
+Открываем файл:
+
+```bash
+nano /etc/nftables.conf
+```
+
+Настраиваем:
+
+```nft
+#!/usr/sbin/nft -f
+
+flush ruleset
+
+table inet filter {
+    chain forward {
+        type filter hook forward priority filter;
+        policy accept;
+    }
+}
+
+table inet nat {
+    chain POSTROUTING {
+        type nat hook postrouting priority srcnat;
+
+        oifname "ens18" ip saddr { 172.16.1.0/28, 172.16.2.0/28 } masquerade
+    }
+}
+```
+
+<p align="center">
+  <img src="images/1var/NAT-isp.png" width="600" />
+</p>
+
+Проверяем конфигурацию:
+
+```bash
+nft -c -f /etc/nftables.conf
+```
+
+Если ошибок нет, применяем:
+
+```bash
+nft -f /etc/nftables.conf
+```
+
+Добавляем службу в автозагрузку:
+
+```bash
+systemctl enable nftables
+```
+
+Перезапускаем:
+
+```bash
+systemctl restart nftables
+```
+
+Проверяем правила:
+
+```bash
+nft list ruleset
+```
+
+После этого `HQ-RTR` и `BR-RTR` должны иметь возможность выходить в Интернет через `ISP`.
