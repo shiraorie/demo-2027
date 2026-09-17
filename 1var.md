@@ -594,3 +594,82 @@ ens19.999
 
 > **Примечание:**
 > На `HQ-RTR` разделение трафика выполняется подинтерфейсами `ens19.100`, `ens19.200` и `ens19.999`.
+
+### <p align="center"><b>6. Настройка GRE-туннеля между HQ и BR</b></p>
+
+По заданию между маршрутизаторами `HQ-RTR` и `BR-RTR` необходимо настроить GRE-туннель.
+
+Для туннеля используем сеть:
+
+```text
+10.10.10.0/30
+```
+
+Адреса:
+
+```text
+HQ-RTR -> 10.10.10.1/30
+BR-RTR -> 10.10.10.2/30
+```
+
+<p align="center"><b>HQ-RTR</b></p>
+
+Открываем файл сетевой конфигурации:
+
+```bash
+nano /etc/network/interfaces
+```
+
+Добавляем GRE-интерфейс:
+
+```text
+auto gre1
+iface gre1 inet static
+    address 10.10.10.1/30
+    pre-up ip tunnel add gre1 mode gre local 172.16.1.2 remote 172.16.2.2 ttl 255
+    post-down ip tunnel del gre1
+```
+
+<p align="center">
+  <img src="images/1var/gre-hq-rtr.png" width="600" />
+</p>
+
+<p align="center"><b>BR-RTR</b></p>
+
+Открываем:
+
+```bash
+nano /etc/network/interfaces
+```
+
+Добавляем:
+
+```text
+auto gre1
+iface gre1 inet static
+    address 10.10.10.2/30
+    pre-up ip tunnel add gre1 mode gre local 172.16.2.2 remote 172.16.1.2 ttl 255
+    post-down ip tunnel del gre1
+```
+
+<p align="center">
+  <img src="images/1var/gre-br-rtr.png" width="600" />
+</p>
+
+После настройки перезапускаем сеть:
+
+```bash
+systemctl restart networking
+```
+
+Проверяем GRE-туннель с `HQ-RTR`:
+
+```bash
+ping 10.10.10.2
+```
+
+<p align="center">
+  <img src="images/1var/gre-ping.png" width="600" />
+</p>
+
+При успешной настройке адрес `10.10.10.2` должен отвечать без потерь.
