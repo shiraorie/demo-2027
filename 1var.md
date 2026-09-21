@@ -2015,6 +2015,53 @@ Timezone=Asia/Yekaterinburg
 
 ## <p align="center"><b>МОДУЛЬ 2</b></p>
 
+### <p align="center"><b>Подключение к устройствам по SSH с HQ-CLI</b></p>
+
+Для удобства дальнейшей настройки устройств подключаемся к ним по SSH с машины `HQ-CLI`.
+
+> **ВНИМАНИЕ!**
+> SSH-порт по заданию — `2027`.
+
+<p align="center"><b>HQ-SRV</b></p>
+
+```bash
+ssh sshuser@192.168.100.2 -p 2027
+```
+
+<p align="center"><b>BR-SRV</b></p>
+
+```bash
+ssh sshuser@192.168.200.2 -p 2027
+```
+
+<p align="center"><b>HQ-RTR</b></p>
+
+```bash
+ssh net_admin@192.168.100.1 -p 2027
+```
+
+<p align="center"><b>BR-RTR</b></p>
+
+```bash
+ssh net_admin@192.168.200.1 -p 2027
+```
+
+<p align="center"><b>ISP</b></p>
+
+```bash
+ssh net_admin@172.16.1.1 -p 2027
+```
+
+Пароль для пользователей `sshuser` и `net_admin`:
+
+```text
+P@ssw0rd
+```
+
+> **Примечание:**
+> Все дальнейшие команды для серверов и маршрутизаторов можно выполнять через SSH с `HQ-CLI`, не переключаясь постоянно между консолями виртуальных машин.
+
+
 ## <p align="center"><b>Задание 2. Организация сетевого администрирования</b></p>
 
 ### <p align="center"><b>1. Настройка контроллера домена Samba DC на BR-SRV</b></p>
