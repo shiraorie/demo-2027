@@ -3163,3 +3163,179 @@ Leap status : Normal
 - на `ISP` настроен `local stratum 5`;
 - `HQ-SRV`, `HQ-CLI`, `BR-RTR` и `BR-SRV` синхронизируют время с `ISP`;
 - все клиенты успешно используют `172.16.1.1` как источник времени.
+
+### <p align="center"><b>5. Настройка Ansible на BR-SRV</b></p>
+
+По заданию необходимо настроить `Ansible` на сервере `BR-SRV`.
+
+Требования:
+
+- рабочий каталог — `/etc/ansible`;
+- в inventory должны входить:
+  - `HQ-SRV`;
+  - `HQ-CLI`;
+  - `HQ-RTR`;
+  - `BR-RTR`;
+- все устройства должны отвечать `pong` на команду:
+
+```bash
+ansible all -m ping
+```
+
+без предупреждений и ошибок.
+
+---
+
+### <p align="center"><b>Установка Ansible</b></p>
+
+На `BR-SRV` устанавливаем Ansible:
+
+```bash
+apt update
+apt install -y ansible
+```
+
+Создаём рабочий каталог:
+
+```bash
+mkdir -p /etc/ansible
+```
+
+Проверяем установку:
+
+```bash
+ansible --version
+```
+
+---
+
+### <p align="center"><b>Создание SSH-ключа</b></p>
+
+Для подключения Ansible к управляемым устройствам без постоянного ввода пароля создаём SSH-ключ:
+
+```bash
+ssh-keygen -t ed25519
+```
+
+На вопросы о пути сохранения ключа и парольной фразе нажимаем `Enter`.
+
+<p align="center">
+  <img src="images/1var/ssh-keqgen.png" width="800" />
+</p>
+
+---
+
+### <p align="center"><b>Настройка inventory</b></p>
+
+Открываем:
+
+```bash
+nano /etc/ansible/hosts
+```
+
+Добавляем:
+
+```ini
+[servers]
+hq-srv ansible_host=192.168.100.2 ansible_user=sshuser ansible_port=2027
+
+[routers]
+hq-rtr ansible_host=192.168.100.1 ansible_user=net_admin
+br-rtr ansible_host=192.168.30.1 ansible_user=net_admin
+
+[clients]
+hq-cli ansible_host=192.168.20.2 ansible_user=administrator ansible_python_interpreter=/usr/bin/python3.9
+```
+
+<p align="center">
+  <img src="images/1var/ansible-hosts.png" width="800" />
+</p>
+
+> **Примечание:**
+> Для `HQ-CLI` явно указан интерпретатор Python `/usr/bin/python3.9`, чтобы Ansible не выводил предупреждение об автоматическом обнаружении Python.
+
+---
+
+### <p align="center"><b>Копирование SSH-ключа</b></p>
+
+Копируем SSH-ключ на управляемые устройства.
+
+Для `HQ-SRV`:
+
+```bash
+ssh-copy-id -p 2027 sshuser@192.168.100.2
+```
+
+Для `HQ-RTR`:
+
+```bash
+ssh-copy-id net_admin@192.168.100.1
+```
+
+Для `BR-RTR`:
+
+```bash
+ssh-copy-id net_admin@192.168.30.1
+```
+
+Для `HQ-CLI`:
+
+```bash
+ssh-copy-id administrator@192.168.20.2
+```
+
+После этого Ansible сможет подключаться к устройствам по SSH без запроса пароля.
+
+---
+
+### <p align="center"><b>Проверка inventory</b></p>
+
+Переходим в рабочий каталог:
+
+```bash
+cd /etc/ansible
+```
+
+Проверяем список устройств:
+
+```bash
+ansible all --list-hosts
+```
+
+<p align="center">
+  <img src="images/1var/list-host.png" width="700" />
+</p>
+
+В выводе должны присутствовать четыре устройства:
+
+```text
+hq-srv
+hq-rtr
+br-rtr
+hq-cli
+```
+
+---
+
+### <p align="center"><b>Проверка Ansible Ping</b></p>
+
+Выполняем:
+
+```bash
+ansible all -m ping
+```
+
+<p align="center">
+  <img src="images/1var/all-ping.png" width="900" />
+</p>
+
+Все устройства должны вернуть:
+
+```text
+SUCCESS
+"ping": "pong"
+```
+
+без строк `[WARNING]` и ошибок.
+
+В результате `BR-SRV` настроен как управляющий узел Ansible, а все четыре устройства успешно доступны из inventory.
