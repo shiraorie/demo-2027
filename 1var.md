@@ -2543,3 +2543,204 @@ lsblk
 - создан раздел `/dev/md0p1`;
 - файловая система — `ext4`;
 - раздел автоматически монтируется в `/raid`.
+
+### <p align="center"><b>3. Настройка NFS на HQ-SRV</b></p>
+
+По заданию необходимо настроить сетевую файловую систему NFS:
+
+- общий каталог — `/raid/nfs`;
+- доступ на чтение и запись разрешить только сети в сторону `HQ-CLI`;
+- на `HQ-CLI` настроить автоматическое монтирование ресурса в `/mnt/nfs`.
+
+Сеть `HQ-CLI`:
+
+```text
+192.168.20.0/28
+```
+
+---
+
+### <p align="center"><b>Настройка NFS-сервера на HQ-SRV</b></p>
+
+Устанавливаем NFS-сервер:
+
+```bash
+apt update
+apt install -y nfs-kernel-server
+```
+
+Создаём каталог общего доступа:
+
+```bash
+mkdir -p /raid/nfs
+chmod 777 /raid/nfs
+```
+
+Открываем файл настройки экспортируемых каталогов:
+
+```bash
+nano /etc/exports
+```
+
+Добавляем:
+
+```text
+/raid/nfs 192.168.20.0/28(rw,sync,no_subtree_check,no_root_squash)
+```
+
+<p align="center">
+  <img src="images/1var/exports.png" width="800" />
+</p>
+
+Где:
+
+- `/raid/nfs` — общий каталог;
+- `192.168.20.0/28` — сеть, в которой находится `HQ-CLI`;
+- `rw` — разрешение чтения и записи;
+- `sync` — синхронная запись данных;
+- `no_subtree_check` — отключение проверки подкаталогов;
+- `no_root_squash` — root-пользователь клиента не ограничивается в правах.
+
+Применяем экспорт:
+
+```bash
+exportfs -arv
+```
+
+Запускаем NFS-сервер и добавляем его в автозагрузку:
+
+```bash
+systemctl enable --now nfs-server
+```
+
+Проверяем:
+
+```bash
+exportfs -v
+```
+
+<p align="center">
+  <img src="images/1var/exportfs.png" width="800" />
+</p>
+
+В выводе должен присутствовать ресурс:
+
+```text
+/raid/nfs 192.168.20.0/28
+```
+
+с разрешением `rw`.
+
+---
+
+### <p align="center"><b>Настройка NFS-клиента на HQ-CLI</b></p>
+
+Устанавливаем клиентские пакеты:
+
+```bash
+apt-get update
+apt-get install -y nfs-utils nfs-clients
+```
+
+Создаём каталог для монтирования:
+
+```bash
+mkdir -p /mnt/nfs
+chmod 777 /mnt/nfs
+```
+
+Проверяем ручное монтирование ресурса:
+
+```bash
+mount -t nfs -o vers=4 192.168.100.2:/raid/nfs /mnt/nfs
+```
+
+<p align="center">
+  <img src="images/1var/mount-cli.png" width="800" />
+</p>
+
+Если команда завершилась без ошибок, ресурс успешно подключён.
+
+Проверяем:
+
+```bash
+df -h /mnt/nfs
+```
+
+---
+
+### <p align="center"><b>Настройка автоматического монтирования</b></p>
+
+Открываем файл:
+
+```bash
+nano /etc/fstab
+```
+
+Добавляем:
+
+```text
+192.168.100.2:/raid/nfs    /mnt/nfs    nfs    defaults,_netdev    0    0
+```
+
+<p align="center">
+  <img src="images/1var/cli-fstab.png" width="800" />
+</p>
+
+Для проверки автоматического монтирования отключаем ресурс:
+
+```bash
+umount /mnt/nfs
+```
+
+Обновляем конфигурацию systemd:
+
+```bash
+systemctl daemon-reload
+```
+
+Выполняем монтирование ресурсов из `/etc/fstab`:
+
+```bash
+mount -a
+```
+
+Проверяем:
+
+```bash
+df -h /mnt/nfs
+ls -la /mnt/nfs
+```
+
+<p align="center">
+  <img src="images/1var/fin-proverka.png" width="800" />
+</p>
+
+---
+
+### <p align="center"><b>Проверка записи в NFS-ресурс</b></p>
+
+На `HQ-CLI` создаём тестовый файл:
+
+```bash
+touch /mnt/nfs/test-hq-cli
+```
+
+Проверяем:
+
+```bash
+ls -la /mnt/nfs
+```
+
+<p align="center">
+  <img src="images/1var/proverka-.png" width="800" />
+</p>
+
+Файл `test-hq-cli` успешно создаётся в NFS-ресурсе.
+
+Таким образом:
+
+- каталог `/raid/nfs` опубликован на `HQ-SRV`;
+- доступ разрешён только сети `192.168.20.0/28`;
+- ресурс доступен на чтение и запись;
+- на `HQ-CLI` ресурс автоматически монтируется в `/mnt/nfs`.
