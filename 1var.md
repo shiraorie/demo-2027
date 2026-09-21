@@ -2020,7 +2020,8 @@ Timezone=Asia/Yekaterinburg
 Для удобства дальнейшей настройки устройств подключаемся к ним по SSH с машины `HQ-CLI`.
 
 > **ВНИМАНИЕ!**
-> SSH-порт по заданию — `2027`.
+> На серверах `HQ-SRV` и `BR-SRV` используется SSH-порт `2027`.
+> На маршрутизаторах и `ISP` подключение выполняется по стандартному SSH-порту `22`.
 
 <p align="center"><b>HQ-SRV</b></p>
 
@@ -2028,29 +2029,59 @@ Timezone=Asia/Yekaterinburg
 ssh sshuser@192.168.100.2 -p 2027
 ```
 
+<p align="center">
+  <img src="images/1var/ssh-podkl-hq-srv.png" width="800" />
+</p>
+
 <p align="center"><b>BR-SRV</b></p>
 
 ```bash
 ssh sshuser@192.168.200.2 -p 2027
 ```
 
+<p align="center">
+  <img src="images/1var/ssh-podkl-br-srv.png" width="800" />
+</p>
+
 <p align="center"><b>HQ-RTR</b></p>
 
 ```bash
-ssh net_admin@192.168.100.1 -p 2027
+ssh net_admin@192.168.100.1
 ```
+
+<p align="center">
+  <img src="images/1var/ssh-podkl-hq-rtr.png" width="800" />
+</p>
 
 <p align="center"><b>BR-RTR</b></p>
 
 ```bash
-ssh net_admin@192.168.200.1 -p 2027
+ssh net_admin@192.168.30.1
 ```
+
+<p align="center">
+  <img src="images/1var/ssh-podkl-br-rtr.png" width="800" />
+</p>
+
+<p align="center"><b>BR-FW</b></p>
+
+```bash
+ssh root@192.168.200.1
+```
+
+<p align="center">
+  <img src="images/1var/ssh-podkl-br-fw.png" width="800" />
+</p>
 
 <p align="center"><b>ISP</b></p>
 
 ```bash
-ssh net_admin@172.16.1.1 -p 2027
+ssh root@172.16.1.1
 ```
+
+<p align="center">
+  <img src="images/1var/ssh-isp.png" width="800" />
+</p>
 
 Пароль для пользователей `sshuser` и `net_admin`:
 
@@ -2059,8 +2090,7 @@ P@ssw0rd
 ```
 
 > **Примечание:**
-> Все дальнейшие команды для серверов и маршрутизаторов можно выполнять через SSH с `HQ-CLI`, не переключаясь постоянно между консолями виртуальных машин.
-
+> Все дальнейшие команды для серверов, маршрутизаторов и межсетевого экрана можно выполнять через SSH с `HQ-CLI`, не переключаясь постоянно между консолями виртуальных машин.
 
 ## <p align="center"><b>Задание 2. Организация сетевого администрирования</b></p>
 
