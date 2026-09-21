@@ -2294,3 +2294,239 @@ Sorry, user hquser1 is not allowed to execute ...
 
 > **Примечание:**
 > Пользователи группы `hq` могут аутентифицироваться на `HQ-CLI`, но повышать привилегии разрешено только для ограниченного набора команд: `cat`, `grep` и `id`.
+
+### <p align="center"><b>2. Настройка RAID0 на HQ-SRV</b></p>
+
+По заданию на `HQ-SRV` необходимо объединить два дополнительных диска объёмом `1 ГБ` в массив `RAID0`.
+
+Массив должен быть доступен как устройство:
+
+```text
+/dev/md0
+```
+
+На массиве создаём раздел, форматируем его в `ext4` и настраиваем автоматическое монтирование в каталог:
+
+```text
+/raid
+```
+
+> **ВНИМАНИЕ!**
+> **ПЕРЕД СОЗДАНИЕМ RAID ОБЯЗАТЕЛЬНО ПРОВЕРЬТЕ ИМЕНА ДВУХ ДОПОЛНИТЕЛЬНЫХ ДИСКОВ ОБЪЁМОМ 1 ГБ КОМАНДОЙ `lsblk`.**
+> **ИМЕНА ДИСКОВ НА ВАШЕМ СТЕНДЕ МОГУТ ОТЛИЧАТЬСЯ.**
+> В нашем случае это `/dev/sda` и `/dev/sdb`, а системный диск — `/dev/sdc`.
+> **НЕ КОПИРУЙТЕ ИМЕНА ДИСКОВ ИЗ ПРИМЕРА БЕЗ ПРОВЕРКИ.**
+
+Проверяем диски:
+
+```bash
+lsblk
+```
+
+<p align="center">
+  <img src="images/1var/lsblk-hq-srv.png" width="700" />
+</p>
+
+В нашем случае два дополнительных диска:
+
+```text
+/dev/sda
+/dev/sdb
+```
+
+---
+
+### <p align="center"><b>Создание RAID0</b></p>
+
+Создаём массив `RAID0` из двух дополнительных дисков:
+
+```bash
+mdadm --create /dev/md0 \
+  --level=0 \
+  --raid-devices=2 \
+  /dev/sda /dev/sdb
+```
+
+<p align="center">
+  <img src="images/1var/mdadm-create.png" width="700" />
+</p>
+
+Проверяем параметры массива:
+
+```bash
+mdadm --detail /dev/md0
+```
+
+<p align="center">
+  <img src="images/1var/mdadm-detail.png" width="800" />
+</p>
+
+В выводе должно быть видно:
+
+```text
+Raid Level : raid0
+Raid Devices : 2
+State : clean
+```
+
+---
+
+### <p align="center"><b>Создание раздела на RAID-массиве</b></p>
+
+Создаём таблицу разделов и раздел на устройстве `/dev/md0`:
+
+```bash
+parted /dev/md0 --script mklabel gpt
+parted /dev/md0 --script mkpart primary ext4 0% 100%
+```
+
+<p align="center">
+  <img src="images/1var/parted.png" width="700" />
+</p>
+
+Проверяем:
+
+```bash
+lsblk
+```
+
+<p align="center">
+  <img src="images/1var/lsblk-md0.png" width="700" />
+</p>
+
+Должен появиться раздел:
+
+```text
+/dev/md0p1
+```
+
+> **Примечание:**
+> Если утилита `parted` отсутствует, раздел можно создать через `fdisk /dev/md0`.
+
+---
+
+### <p align="center"><b>Форматирование раздела</b></p>
+
+Форматируем раздел в файловую систему `ext4`:
+
+```bash
+mkfs.ext4 /dev/md0p1
+```
+
+<p align="center">
+  <img src="images/1var/mkfs.png" width="700" />
+</p>
+
+---
+
+### <p align="center"><b>Монтирование RAID</b></p>
+
+Создаём каталог:
+
+```bash
+mkdir -p /raid
+```
+
+Монтируем раздел:
+
+```bash
+mount /dev/md0p1 /raid
+```
+
+Проверяем:
+
+```bash
+df -h /raid
+```
+
+<p align="center">
+  <img src="images/1var/proverka.png" width="700" />
+</p>
+
+---
+
+### <p align="center"><b>Сохранение конфигурации RAID</b></p>
+
+Сохраняем конфигурацию массива:
+
+```bash
+mdadm --detail --scan > /etc/mdadm.conf
+```
+
+Проверяем:
+
+```bash
+cat /etc/mdadm.conf
+```
+
+---
+
+### <p align="center"><b>Настройка автоматического монтирования</b></p>
+
+Открываем файл:
+
+```bash
+nano /etc/fstab
+```
+
+Добавляем:
+
+```text
+/dev/md0p1    /raid    ext4    defaults    0    2
+```
+
+<p align="center">
+  <img src="images/1var/fstab-hq-srv.png" width="800" />
+</p>
+
+После изменения `/etc/fstab` обновляем конфигурацию systemd:
+
+```bash
+systemctl daemon-reload
+```
+
+Затем проверяем автоматическое монтирование:
+
+```bash
+umount /raid
+mount -a
+```
+
+Если появляется сообщение о том, что `fstab` изменён, выполняем:
+
+```bash
+systemctl daemon-reload
+mount -a
+```
+
+<p align="center">
+  <img src="images/1var/daemon-reload.png" width="700" />
+</p>
+
+---
+
+### <p align="center"><b>Финальная проверка</b></p>
+
+Проверяем точку монтирования:
+
+```bash
+df -h /raid
+```
+
+Проверяем структуру дисков:
+
+```bash
+lsblk
+```
+
+<p align="center">
+  <img src="images/1var/raid-mount-check.png" width="800" />
+</p>
+
+В результате:
+
+- два диска по `1 ГБ` объединены в `RAID0`;
+- создан массив `/dev/md0`;
+- создан раздел `/dev/md0p1`;
+- файловая система — `ext4`;
+- раздел автоматически монтируется в `/raid`.
