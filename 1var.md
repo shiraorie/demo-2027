@@ -2821,3 +2821,345 @@ ls -la /mnt/nfs
 - доступ разрешён только сети `192.168.20.0/28`;
 - ресурс доступен на чтение и запись;
 - на `HQ-CLI` ресурс автоматически монтируется в `/mnt/nfs`.
+
+### <p align="center"><b>4. Настройка службы сетевого времени Chrony</b></p>
+
+По заданию необходимо настроить службу сетевого времени на базе `chrony`.
+
+В качестве сервера времени используется `ISP`.
+
+Требования:
+
+- на `ISP` настроить сервер Chrony;
+- выбрать внешний NTP-источник;
+- настроить локальный `stratum 5`;
+- клиентами сервера времени сделать:
+  - `HQ-SRV`;
+  - `HQ-CLI`;
+  - `BR-RTR`;
+  - `BR-SRV`.
+
+---
+
+### <p align="center"><b>Настройка Chrony на ISP</b></p>
+
+Устанавливаем пакет:
+
+```bash
+apt update
+apt install -y chrony
+```
+
+Открываем конфигурационный файл:
+
+```bash
+nano /etc/chrony/chrony.conf
+```
+
+В качестве внешнего источника времени используем пул Debian:
+
+```conf
+pool 2.debian.pool.ntp.org iburst
+```
+
+Добавляем:
+
+```conf
+local stratum 5
+
+allow 172.16.1.0/28
+allow 172.16.2.0/28
+```
+
+Итоговый фрагмент конфигурации:
+
+```conf
+pool 2.debian.pool.ntp.org iburst
+
+local stratum 5
+
+allow 172.16.1.0/28
+allow 172.16.2.0/28
+```
+
+<p align="center">
+  <img src="images/1var/chrony.conf-isp.png" width="800" />
+</p>
+
+Где:
+
+- `pool 2.debian.pool.ntp.org iburst` — внешний источник времени;
+- `local stratum 5` — локальный уровень stratum сервера;
+- `allow 172.16.1.0/28` — разрешает запросы со стороны HQ;
+- `allow 172.16.2.0/28` — разрешает запросы со стороны BR.
+
+Запускаем службу и добавляем её в автозагрузку:
+
+```bash
+systemctl enable --now chrony
+systemctl restart chrony
+```
+
+Проверяем источники времени:
+
+```bash
+chronyc sources -v
+```
+
+Проверяем состояние синхронизации:
+
+```bash
+chronyc tracking
+```
+
+<p align="center">
+  <img src="images/1var/chrony-srv-check.png" width="800" />
+</p>
+
+В выводе `chronyc tracking` должно отображаться:
+
+```text
+Stratum : 5
+Leap status : Normal
+```
+
+> **Примечание:**
+> Директива `local stratum 5` задаёт требуемый локальный stratum сервера.
+> При синхронизации `ISP` с внешним NTP-источником фактические значения в выводе Chrony могут отличаться.
+
+---
+
+### <p align="center"><b>Настройка клиента HQ-SRV</b></p>
+
+Устанавливаем Chrony:
+
+```bash
+apt update
+apt install -y chrony
+```
+
+Открываем:
+
+```bash
+nano /etc/chrony/chrony.conf
+```
+
+Стандартный внешний пул комментируем и добавляем сервер `ISP`:
+
+```conf
+server 172.16.1.1 iburst
+```
+
+<p align="center">
+  <img src="images/1var/chrony-hq-srv.png" width="800" />
+</p>
+
+Применяем конфигурацию:
+
+```bash
+systemctl enable --now chrony
+systemctl restart chrony
+```
+
+Проверяем:
+
+```bash
+chronyc sources -v
+chronyc tracking
+```
+
+<p align="center">
+  <img src="images/1var/chrony-check-hq-srv.png" width="800" />
+</p>
+
+Источник:
+
+```text
+172.16.1.1
+```
+
+должен отображаться с признаком:
+
+```text
+^*
+```
+
+Это означает, что данный сервер выбран текущим источником времени.
+
+---
+
+### <p align="center"><b>Настройка клиента BR-SRV</b></p>
+
+Устанавливаем:
+
+```bash
+apt update
+apt install -y chrony
+```
+
+Открываем:
+
+```bash
+nano /etc/chrony/chrony.conf
+```
+
+Добавляем:
+
+```conf
+server 172.16.1.1 iburst
+```
+
+<p align="center">
+  <img src="images/1var/chrony-br-srv.png" width="800" />
+</p>
+
+Перезапускаем службу:
+
+```bash
+systemctl enable --now chrony
+systemctl restart chrony
+```
+
+Проверяем:
+
+```bash
+chronyc sources -v
+chronyc tracking
+```
+
+<p align="center">
+  <img src="images/1var/chrony-check-br-srv.png" width="800" />
+</p>
+
+---
+
+### <p align="center"><b>Настройка клиента BR-RTR</b></p>
+
+Устанавливаем:
+
+```bash
+apt update
+apt install -y chrony
+```
+
+Открываем:
+
+```bash
+nano /etc/chrony/chrony.conf
+```
+
+Указываем сервер времени:
+
+```conf
+server 172.16.1.1 iburst
+```
+
+<p align="center">
+  <img src="images/1var/chrony-br-rtr.png" width="800" />
+</p>
+
+Запускаем и перезапускаем службу:
+
+```bash
+systemctl enable --now chrony
+systemctl restart chrony
+```
+
+Проверяем:
+
+```bash
+chronyc sources -v
+chronyc tracking
+```
+
+<p align="center">
+  <img src="images/1var/chrony-check-br-rtr.png" width="800" />
+</p>
+
+---
+
+### <p align="center"><b>Настройка клиента HQ-CLI</b></p>
+
+`HQ-CLI` работает под управлением ALT Workstation.
+
+Устанавливаем Chrony:
+
+```bash
+apt-get update
+apt-get install -y chrony
+```
+
+Открываем конфигурацию:
+
+```bash
+nano /etc/chrony.conf
+```
+
+Добавляем:
+
+```conf
+server 172.16.1.1 iburst
+```
+
+<p align="center">
+  <img src="images/1var/chrony-hq-cli.png" width="800" />
+</p>
+
+Перезапускаем службу:
+
+```bash
+systemctl enable --now chronyd
+systemctl restart chronyd
+```
+
+Проверяем:
+
+```bash
+chronyc sources -v
+chronyc tracking
+```
+
+<p align="center">
+  <img src="images/1var/chrony-check-hq-cli.png" width="800" />
+</p>
+
+---
+
+### <p align="center"><b>Финальная проверка</b></p>
+
+На всех клиентах выполняем:
+
+```bash
+chronyc sources -v
+```
+
+В качестве выбранного источника должен отображаться:
+
+```text
+172.16.1.1
+```
+
+с состоянием:
+
+```text
+^*
+```
+
+Также проверяем:
+
+```bash
+chronyc tracking
+```
+
+В исправно работающей конфигурации должно отображаться:
+
+```text
+Leap status : Normal
+```
+
+В результате:
+
+- `ISP` используется как сервер времени;
+- на `ISP` настроен `local stratum 5`;
+- `HQ-SRV`, `HQ-CLI`, `BR-RTR` и `BR-SRV` синхронизируют время с `ISP`;
+- все клиенты успешно используют `172.16.1.1` как источник времени.
