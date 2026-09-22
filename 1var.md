@@ -4728,3 +4728,97 @@ cat /etc/ansible/PC-INFO/hq-cli.yml
 </p>
 
 В результате для `HQ-SRV` и `HQ-CLI` созданы отчёты в формате `.yml`, содержащие имя компьютера и его IP-адрес.
+
+### <p align="center"><b>8. Настройка fail2ban для защиты SSH на HQ-SRV</b></p>
+
+По заданию необходимо настроить `fail2ban` на `HQ-SRV` для защиты SSH:
+
+- использовать фактический SSH-порт `2027`;
+- после 3 неуспешных попыток аутентификации адрес должен попасть в бан;
+- время блокировки — 1 минута.
+
+Устанавливаем `fail2ban`:
+
+```bash
+apt update
+apt install -y fail2ban curl
+```
+
+Скачиваем готовую конфигурацию:
+
+```bash
+curl -o /etc/fail2ban/jail.d/sshd.local https://raw.githubusercontent.com/shiraorie/demo-2027/main/files/sshd.local
+```
+
+Проверяем содержимое файла:
+
+```bash
+cat /etc/fail2ban/jail.d/sshd.local
+```
+
+Конфигурация должна содержать:
+
+```ini
+[sshd]
+enabled = true
+port = 2027
+filter = sshd
+backend = systemd
+maxretry = 3
+findtime = 600
+bantime = 60
+```
+
+Проверяем конфигурацию `fail2ban`:
+
+```bash
+fail2ban-client -t
+```
+
+При корректной конфигурации отображается сообщение:
+
+```text
+OK: configuration test is successful
+```
+
+Включаем сервис и перезапускаем его:
+
+```bash
+systemctl enable --now fail2ban
+systemctl restart fail2ban
+```
+
+Проверяем состояние jail `sshd`:
+
+```bash
+fail2ban-client status sshd
+```
+
+<p align="center">
+  <img src="images/1var/fail-too-ban.png" width="900" />
+</p>
+
+Проверяем количество допустимых неудачных попыток:
+
+```bash
+fail2ban-client get sshd maxretry
+```
+
+Проверяем время блокировки:
+
+```bash
+fail2ban-client get sshd bantime
+```
+
+Ожидаемые значения:
+
+```text
+3
+60
+```
+
+<p align="center">
+  <img src="images/1var/fail-get.png" width="900" />
+</p>
+
+В результате на `HQ-SRV` настроен `fail2ban` для защиты SSH на порту `2027`. После 3 неуспешных попыток аутентификации адрес блокируется на 60 секунд.
