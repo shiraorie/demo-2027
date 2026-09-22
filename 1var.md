@@ -3587,3 +3587,216 @@ http://192.168.200.2:8080
 - пользователь базы данных — `test`;
 - пароль — `Passw0rd`;
 - приложение доступно по адресу `http://192.168.200.2:8080`.
+
+### <p align="center"><b>7. Развертывание веб-приложения на HQ-SRV</b></p>
+
+По заданию необходимо развернуть веб-приложение на сервере `HQ-SRV`.
+
+Требования:
+
+- веб-сервер — `Apache`;
+- СУБД — `MariaDB`;
+- база данных — `webdb`;
+- пользователь базы данных — `web`;
+- пароль — `P@ssw0rd`;
+- импортировать данные из `dump.sql`;
+- разместить `index.php` и `logo.png` в каталоге веб-сервера;
+- исправить параметры подключения к базе данных;
+- проверить работоспособность приложения.
+
+---
+
+### <p align="center"><b>Установка необходимых пакетов</b></p>
+
+Устанавливаем Apache, MariaDB и PHP:
+
+```bash
+apt update
+apt install -y apache2 mariadb-server php libapache2-mod-php php-mysql
+```
+
+Запускаем службы и добавляем их в автозагрузку:
+
+```bash
+systemctl enable --now apache2
+systemctl enable --now mariadb
+```
+
+---
+
+### <p align="center"><b>Монтирование Additional.iso</b></p>
+
+Создаём каталог:
+
+```bash
+mkdir -p /mnt/additional
+```
+
+Монтируем образ:
+
+```bash
+mount /dev/sr0 /mnt/additional
+```
+
+Проверяем наличие файлов:
+
+```bash
+find /mnt/additional/web -maxdepth 1 -type f
+```
+
+В каталоге должны находиться:
+
+```text
+/mnt/additional/web/dump.sql
+/mnt/additional/web/index.php
+/mnt/additional/web/logo.png
+```
+
+---
+
+### <p align="center"><b>Создание базы данных</b></p>
+
+Открываем MariaDB:
+
+```bash
+mariadb
+```
+
+Создаём базу данных:
+
+```sql
+CREATE DATABASE webdb;
+```
+
+Создаём пользователя:
+
+```sql
+CREATE USER 'web'@'localhost' IDENTIFIED BY 'P@ssw0rd';
+```
+
+Выдаём права:
+
+```sql
+GRANT ALL PRIVILEGES ON webdb.* TO 'web'@'localhost';
+FLUSH PRIVILEGES;
+EXIT;
+```
+
+---
+
+### <p align="center"><b>Импорт базы данных</b></p>
+
+Импортируем `dump.sql`:
+
+```bash
+mariadb -u web -p'P@ssw0rd' webdb < /mnt/additional/web/dump.sql
+```
+
+Проверяем наличие таблиц:
+
+```bash
+mariadb -u web -p'P@ssw0rd' webdb -e 'SHOW TABLES;'
+```
+
+<p align="center">
+  <img src="images/1var/mariadb-u.png" width="800" />
+</p>
+
+В базе должна присутствовать таблица:
+
+```text
+employees
+```
+
+---
+
+### <p align="center"><b>Копирование файлов веб-приложения</b></p>
+
+Удаляем стандартную страницу Apache:
+
+```bash
+rm -f /var/www/html/index.html
+```
+
+Копируем файлы приложения:
+
+```bash
+cp /mnt/additional/web/index.php /var/www/html/
+cp /mnt/additional/web/logo.png /var/www/html/
+```
+
+Проверяем:
+
+```bash
+ls -la /var/www/html/
+```
+
+---
+
+### <p align="center"><b>Настройка подключения к базе данных</b></p>
+
+Открываем:
+
+```bash
+nano /var/www/html/index.php
+```
+
+> **ВНИМАНИЕ!**
+> В исходном файле `index.php` значения `username`, `password` и `dbname` указаны неверно. Их необходимо изменить.
+
+Указываем:
+
+```php
+<?php
+$servername = "localhost";
+$username = "web";
+$password = "P@ssw0rd";
+$dbname = "webdb";
+```
+
+В результате начало файла должно выглядеть следующим образом:
+
+<p align="center">
+  <img src="images/1var/index-php.png" width="800" />
+</p>
+
+---
+
+### <p align="center"><b>Запуск и проверка веб-приложения</b></p>
+
+Перезапускаем Apache:
+
+```bash
+systemctl restart apache2
+```
+
+Проверяем состояние:
+
+```bash
+systemctl status apache2
+```
+
+На `HQ-CLI` открываем браузер и переходим по адресу:
+
+```text
+http://192.168.100.2
+```
+
+<p align="center">
+  <img src="images/1var/100-2.png" width="900" />
+</p>
+
+Если отображается веб-интерфейс с данными сотрудников, приложение работает корректно.
+
+---
+
+В результате:
+
+- на `HQ-SRV` установлен Apache;
+- установлена MariaDB;
+- создана база `webdb`;
+- создан пользователь `web`;
+- импортирован `dump.sql`;
+- размещены `index.php` и `logo.png`;
+- исправлены параметры подключения к БД;
+- веб-приложение доступно по адресу `http://192.168.100.2`.
