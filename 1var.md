@@ -4249,3 +4249,319 @@ http://web.au-team.irpo
 - для `web.au-team.irpo` настроена web-based аутентификация;
 - для входа используется пользователь `WEB` с паролем `P@ssw0rd`;
 - после успешной аутентификации пользователь получает доступ к веб-приложению.
+
+### <p align="center"><b>4. Настройка центра сертификации и перевод веб-сервисов на HTTPS</b></p>
+
+По заданию необходимо:
+
+- настроить центр сертификации на `HQ-SRV`;
+- выдать сертификаты для `web.au-team.irpo` и `docker.au-team.irpo`;
+- срок действия сертификатов должен составлять 30 дней;
+- обеспечить доверие корневому сертификату на `HQ-CLI`;
+- перевести ранее настроенный обратный прокси-сервер на протокол `HTTPS`;
+- обеспечить открытие веб-сервисов без предупреждений браузера.
+
+---
+
+### <p align="center"><b>Подготовка центра сертификации на HQ-SRV</b></p>
+
+Устанавливаем необходимые пакеты:
+
+```bash
+apt update
+apt install -y openssl ca-certificates
+```
+
+Создаём структуру каталогов центра сертификации:
+
+```bash
+mkdir -p /etc/pki/CA/{private,certs,newcerts,crl}
+touch /etc/pki/CA/index.txt
+echo 1000 > /etc/pki/CA/serial
+chmod 700 /etc/pki/CA/private
+```
+
+<p align="center">
+  <img src="images/1var/group-ca.png" width="900" />
+</p>
+
+Создаём закрытый ключ центра сертификации:
+
+```bash
+openssl genrsa -out /etc/pki/CA/private/ca.key 4096
+```
+
+Создаём корневой сертификат:
+
+```bash
+openssl req -x509 -new \
+  -key /etc/pki/CA/private/ca.key \
+  -out /etc/pki/CA/certs/ca.crt \
+  -days 3650 \
+  -sha256 \
+  -subj "/CN=AU-TEAM Root CA"
+```
+
+<p align="center">
+  <img src="images/1var/gqnrsa.png" width="900" />
+</p>
+
+---
+
+### <p align="center"><b>Создание ключей и запросов сертификатов</b></p>
+
+Создаём закрытый ключ для `web.au-team.irpo`:
+
+```bash
+openssl genrsa -out /etc/pki/CA/private/web.au-team.irpo.key 2048
+```
+
+Создаём CSR:
+
+```bash
+openssl req -new \
+  -key /etc/pki/CA/private/web.au-team.irpo.key \
+  -out /etc/pki/CA/web.au-team.irpo.csr \
+  -subj "/CN=web.au-team.irpo"
+```
+
+Создаём закрытый ключ для `docker.au-team.irpo`:
+
+```bash
+openssl genrsa -out /etc/pki/CA/private/docker.au-team.irpo.key 2048
+```
+
+Создаём CSR:
+
+```bash
+openssl req -new \
+  -key /etc/pki/CA/private/docker.au-team.irpo.key \
+  -out /etc/pki/CA/docker.au-team.irpo.csr \
+  -subj "/CN=docker.au-team.irpo"
+```
+
+<p align="center">
+  <img src="images/1var/key-csr.png" width="900" />
+</p>
+
+---
+
+### <p align="center"><b>Выпуск сертификата для web.au-team.irpo</b></p>
+
+Создаём файл расширений:
+
+```bash
+cat > /tmp/web.ext <<'EOF'
+subjectAltName=DNS:web.au-team.irpo
+basicConstraints=CA:FALSE
+keyUsage=digitalSignature,keyEncipherment
+extendedKeyUsage=serverAuth
+EOF
+```
+
+Подписываем сертификат:
+
+```bash
+openssl x509 -req \
+  -in /etc/pki/CA/web.au-team.irpo.csr \
+  -CA /etc/pki/CA/certs/ca.crt \
+  -CAkey /etc/pki/CA/private/ca.key \
+  -CAcreateserial \
+  -out /etc/pki/CA/certs/web.au-team.irpo.crt \
+  -days 30 \
+  -sha256 \
+  -extfile /tmp/web.ext
+```
+
+<p align="center">
+  <img src="images/1var/web-ay-team.png" width="900" />
+</p>
+
+---
+
+### <p align="center"><b>Выпуск сертификата для docker.au-team.irpo</b></p>
+
+Создаём файл расширений:
+
+```bash
+cat > /tmp/docker.ext <<'EOF'
+subjectAltName=DNS:docker.au-team.irpo
+basicConstraints=CA:FALSE
+keyUsage=digitalSignature,keyEncipherment
+extendedKeyUsage=serverAuth
+EOF
+```
+
+Подписываем сертификат:
+
+```bash
+openssl x509 -req \
+  -in /etc/pki/CA/docker.au-team.irpo.csr \
+  -CA /etc/pki/CA/certs/ca.crt \
+  -CAkey /etc/pki/CA/private/ca.key \
+  -out /etc/pki/CA/certs/docker.au-team.irpo.crt \
+  -days 30 \
+  -sha256 \
+  -extfile /tmp/docker.ext
+```
+
+<p align="center">
+  <img src="images/1var/podpis-docker-au.png" width="900" />
+</p>
+
+---
+
+### <p align="center"><b>Проверка сертификатов</b></p>
+
+Проверяем сертификат `web.au-team.irpo`:
+
+```bash
+openssl x509 -in /etc/pki/CA/certs/web.au-team.irpo.crt \
+  -noout -subject -issuer -dates -ext subjectAltName
+```
+
+Проверяем сертификат `docker.au-team.irpo`:
+
+```bash
+openssl x509 -in /etc/pki/CA/certs/docker.au-team.irpo.crt \
+  -noout -subject -issuer -dates -ext subjectAltName
+```
+
+<p align="center">
+  <img src="images/1var/check-ssl.png" width="900" />
+</p>
+
+В выводе должны отображаться:
+
+```text
+issuer=CN = AU-TEAM Root CA
+```
+
+а также соответствующие DNS-имена в `Subject Alternative Name`.
+
+Срок действия сертификатов составляет 30 дней.
+
+---
+
+### <p align="center"><b>Передача сертификатов на ISP</b></p>
+
+На `ISP` создаём каталог:
+
+```bash
+mkdir -p /etc/nginx/ssl
+```
+
+С `HQ-SRV` передаём сертификаты и ключи:
+
+```bash
+scp /etc/pki/CA/certs/web.au-team.irpo.crt root@172.16.1.1:/etc/nginx/ssl/
+scp /etc/pki/CA/private/web.au-team.irpo.key root@172.16.1.1:/etc/nginx/ssl/
+
+scp /etc/pki/CA/certs/docker.au-team.irpo.crt root@172.16.1.1:/etc/nginx/ssl/
+scp /etc/pki/CA/private/docker.au-team.irpo.key root@172.16.1.1:/etc/nginx/ssl/
+```
+
+<p align="center">
+  <img src="images/1var/scp.png" width="900" />
+</p>
+
+---
+
+### <p align="center"><b>Перевод nginx на HTTPS</b></p>
+
+Скачиваем готовую HTTPS-конфигурацию:
+
+```bash
+curl -o /etc/nginx/sites-available/default https://raw.githubusercontent.com/shiraorie/demo-2027/main/files/default-ssl
+```
+
+В конфигурации:
+
+- `web.au-team.irpo` работает на `443 ssl`;
+- `docker.au-team.irpo` работает на `443 ssl`;
+- для каждого сайта используется отдельный сертификат;
+- для `web.au-team.irpo` сохраняется web-based аутентификация;
+- проксирование выполняется на ранее настроенные сервисы.
+
+<p align="center">
+  <img src="images/1var/default-ssl.png" width="900" />
+</p>
+
+Проверяем конфигурацию:
+
+```bash
+nginx -t
+```
+
+Применяем:
+
+```bash
+systemctl restart nginx
+```
+
+---
+
+### <p align="center"><b>Добавление корневого сертификата на HQ-CLI</b></p>
+
+С `HQ-SRV` передаём корневой сертификат на `HQ-CLI`:
+
+```bash
+scp /etc/pki/CA/certs/ca.crt root@192.168.20.2:/tmp/ca.crt
+```
+
+<p align="center">
+  <img src="images/1var/scp-cli.png" width="900" />
+</p>
+
+На `HQ-CLI` добавляем сертификат в доверенные:
+
+```bash
+mkdir -p /etc/pki/ca-trust/source/anchors
+cp /tmp/ca.crt /etc/pki/ca-trust/source/anchors/au-team-ca.crt
+update-ca-trust
+```
+
+После этого полностью перезапускаем браузер.
+
+---
+
+### <p align="center"><b>Проверка HTTPS</b></p>
+
+На `HQ-CLI` открываем:
+
+```text
+https://web.au-team.irpo
+```
+
+После успешной web-based аутентификации приложение открывается по защищённому соединению без предупреждений браузера.
+
+<p align="center">
+  <img src="images/1var/ssl-web.png" width="900" />
+</p>
+
+Проверяем второй сервис:
+
+```text
+https://docker.au-team.irpo
+```
+
+Приложение `testapp` также открывается по HTTPS без предупреждений сертификата.
+
+<p align="center">
+  <img src="images/1var/ssl-docker.png" width="900" />
+</p>
+
+---
+
+В результате:
+
+- на `HQ-SRV` настроен собственный центр сертификации;
+- создан корневой сертификат `AU-TEAM Root CA`;
+- выпущены отдельные сертификаты для `web.au-team.irpo` и `docker.au-team.irpo`;
+- срок действия серверных сертификатов составляет 30 дней;
+- сертификаты содержат корректные `Subject Alternative Name`;
+- сертификаты и ключи переданы на `ISP`;
+- `nginx` переведён на HTTPS;
+- web-based аутентификация для `web.au-team.irpo` сохранена;
+- корневой сертификат добавлен в доверенные на `HQ-CLI`;
+- оба веб-сервиса открываются по HTTPS без предупреждений браузера.
