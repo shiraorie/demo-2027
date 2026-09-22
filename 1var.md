@@ -4085,3 +4085,167 @@ chmod +x /root/import.sh
 </p>
 
 В результате пользователи из `users.csv` импортированы в домен `au-team.irpo` с паролями и поддерживаемыми Samba атрибутами.
+
+### <p align="center"><b>2–3. Настройка обратного прокси-сервера и web-based аутентификации на ISP</b></p>
+
+По заданию необходимо настроить на `ISP` обратный прокси-сервер для двух веб-приложений:
+
+- `web.au-team.irpo` — веб-приложение на `HQ-SRV`;
+- `docker.au-team.irpo` — приложение `testapp` на `BR-SRV`.
+
+Для сайта `web.au-team.irpo` дополнительно необходимо настроить web-based аутентификацию с логином `WEB` и паролем `P@ssw0rd`.
+
+---
+
+### <p align="center"><b>Установка необходимых пакетов</b></p>
+
+На `ISP` устанавливаем `nginx`, утилиту `htpasswd` и `curl`:
+
+```bash
+apt update
+apt install -y nginx apache2-utils curl
+```
+
+---
+
+### <p align="center"><b>Создание пользователя для web-based аутентификации</b></p>
+
+Создаём файл с учётной записью пользователя `WEB`:
+
+```bash
+htpasswd -c /etc/nginx/.htpasswd WEB
+```
+
+Вводим пароль:
+
+```text
+P@ssw0rd
+```
+
+<p align="center">
+  <img src="images/1var/hqpasswd.png" width="800" />
+</p>
+
+---
+
+### <p align="center"><b>Настройка обратного прокси-сервера</b></p>
+
+Скачиваем готовый конфигурационный файл `default` из репозитория:
+
+```bash
+curl -o /etc/nginx/sites-available/default https://raw.githubusercontent.com/shiraorie/demo-2027/main/files/default
+```
+
+Конфигурация содержит два виртуальных хоста.
+
+Для `web.au-team.irpo` используется проксирование на внешний адрес `HQ-RTR`:
+
+```nginx
+server {
+    listen 80;
+    server_name web.au-team.irpo;
+
+    auth_basic "Restricted";
+    auth_basic_user_file /etc/nginx/.htpasswd;
+
+    location / {
+        proxy_pass http://172.16.1.2:8080;
+
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+Для `docker.au-team.irpo` используется проксирование на внешний адрес `BR-RTR`:
+
+```nginx
+server {
+    listen 80;
+    server_name docker.au-team.irpo;
+
+    location / {
+        proxy_pass http://172.16.2.2:8080;
+
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+<p align="center">
+  <img src="images/1var/default.png" width="900" />
+</p>
+
+---
+
+### <p align="center"><b>Проверка конфигурации nginx</b></p>
+
+Проверяем конфигурацию:
+
+```bash
+nginx -t
+```
+
+Включаем сервис и перезапускаем его:
+
+```bash
+systemctl enable --now nginx
+systemctl restart nginx
+```
+
+---
+
+### <p align="center"><b>Проверка docker.au-team.irpo</b></p>
+
+На `HQ-CLI` открываем браузер и переходим по адресу:
+
+```text
+http://docker.au-team.irpo
+```
+
+Должно открыться приложение `testapp`, работающее на `BR-SRV`.
+
+<p align="center">
+  <img src="images/1var/docker-au-team.png" width="900" />
+</p>
+
+---
+
+### <p align="center"><b>Проверка web.au-team.irpo</b></p>
+
+На `HQ-CLI` переходим по адресу:
+
+```text
+http://web.au-team.irpo
+```
+
+При первом обращении браузер запрашивает учётные данные.
+
+Используем:
+
+```text
+Логин: WEB
+Пароль: P@ssw0rd
+```
+
+После успешной аутентификации открывается веб-приложение, размещённое на `HQ-SRV`.
+
+<p align="center">
+  <img src="images/1var/web-au-team.png" width="900" />
+</p>
+
+---
+
+В результате:
+
+- на `ISP` настроен обратный прокси-сервер `nginx`;
+- `web.au-team.irpo` перенаправляется на веб-приложение `HQ-SRV`;
+- `docker.au-team.irpo` перенаправляется на приложение `testapp` на `BR-SRV`;
+- для `web.au-team.irpo` настроена web-based аутентификация;
+- для входа используется пользователь `WEB` с паролем `P@ssw0rd`;
+- после успешной аутентификации пользователь получает доступ к веб-приложению.
