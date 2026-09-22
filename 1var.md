@@ -3800,3 +3800,199 @@ http://192.168.100.2
 - размещены `index.php` и `logo.png`;
 - исправлены параметры подключения к БД;
 - веб-приложение доступно по адресу `http://192.168.100.2`.
+
+### <p align="center"><b>8. Настройка статической трансляции портов</b></p>
+
+По заданию необходимо настроить статическую трансляцию портов на маршрутизаторах `HQ-RTR` и `BR-RTR`.
+
+Необходимо выполнить следующие пробросы:
+
+| Маршрутизатор | Внешний порт | Внутренний узел | Внутренний порт |
+|---|---:|---|---:|
+| `HQ-RTR` | `8080` | `HQ-SRV` | `80` |
+| `HQ-RTR` | `2027` | `HQ-SRV` | `2027` |
+| `BR-RTR` | `8080` | `BR-SRV` | `8080` |
+| `BR-RTR` | `2027` | `BR-SRV` | `2027` |
+
+---
+
+### <p align="center"><b>Настройка проброса портов на HQ-RTR</b></p>
+
+Открываем конфигурацию `nftables`:
+
+```bash
+nano /etc/nftables.conf
+```
+
+В существующую таблицу `nat` добавляем цепочку `PREROUTING`:
+
+```nft
+table inet nat {
+    chain PREROUTING {
+        type nat hook prerouting priority dstnat;
+
+        iifname "ens18" tcp dport 8080 dnat ip to 192.168.100.2:80
+        iifname "ens18" tcp dport 2027 dnat ip to 192.168.100.2:2027
+    }
+
+    chain POSTROUTING {
+        type nat hook postrouting priority srcnat;
+
+        oifname "ens18" ip saddr { 192.168.100.0/27, 192.168.20.0/28, 192.168.99.0/29 } masquerade
+    }
+}
+```
+
+<p align="center">
+  <img src="images/1var/nft-hq-rtr.png" width="900" />
+</p>
+
+Проверяем синтаксис:
+
+```bash
+nft -c -f /etc/nftables.conf
+```
+
+Применяем конфигурацию:
+
+```bash
+nft -f /etc/nftables.conf
+systemctl restart nftables
+```
+
+Проверяем правила:
+
+```bash
+nft list table inet nat
+```
+
+---
+
+### <p align="center"><b>Настройка проброса портов на BR-RTR</b></p>
+
+Открываем:
+
+```bash
+nano /etc/nftables.conf
+```
+
+В существующую таблицу `nat` добавляем:
+
+```nft
+table inet nat {
+    chain PREROUTING {
+        type nat hook prerouting priority dstnat;
+
+        iifname "ens18" tcp dport 8080 dnat ip to 192.168.200.2:8080
+        iifname "ens18" tcp dport 2027 dnat ip to 192.168.200.2:2027
+    }
+
+    chain POSTROUTING {
+        type nat hook postrouting priority srcnat;
+
+        oifname "ens18" ip saddr { 192.168.30.0/30, 192.168.200.0/28 } masquerade
+    }
+}
+```
+
+<p align="center">
+  <img src="images/1var/nft-br-rtr.png" width="900" />
+</p>
+
+Проверяем синтаксис:
+
+```bash
+nft -c -f /etc/nftables.conf
+```
+
+Применяем:
+
+```bash
+nft -f /etc/nftables.conf
+systemctl restart nftables
+```
+
+Проверяем:
+
+```bash
+nft list table inet nat
+```
+
+---
+
+### <p align="center"><b>Проверка веб-приложений с ISP</b></p>
+
+Для проверки статической трансляции выполняем запросы с внешней стороны — с устройства `ISP`.
+
+Если утилита `curl` не установлена:
+
+```bash
+apt update
+apt install -y curl
+```
+
+Проверяем веб-приложение на `HQ-SRV` через внешний адрес `HQ-RTR`:
+
+```bash
+curl http://172.16.1.2:8080
+```
+
+<p align="center">
+  <img src="images/1var/curl-1-2.png" width="900" />
+</p>
+
+В ответ должен отображаться HTML-код веб-приложения, размещённого на `HQ-SRV`.
+
+Проверяем приложение `testapp` на `BR-SRV` через внешний адрес `BR-RTR`:
+
+```bash
+curl http://172.16.2.2:8080
+```
+
+<p align="center">
+  <img src="images/1var/curl-2-2.png" width="900" />
+</p>
+
+Если возвращается HTML-код приложения, проброс порта `8080` работает корректно.
+
+---
+
+### <p align="center"><b>Проверка SSH-пробросов</b></p>
+
+С устройства `ISP` проверяем подключение к `HQ-SRV` через `HQ-RTR`:
+
+```bash
+ssh sshuser@172.16.1.2 -p 2027
+```
+
+Проверяем подключение к `BR-SRV` через `BR-RTR`:
+
+```bash
+ssh sshuser@172.16.2.2 -p 2027
+```
+
+<p align="center">
+  <img src="images/1var/ssh-probr.png" width="900" />
+</p>
+
+При корректной настройке отображается SSH-баннер:
+
+```text
+Authorized access only
+```
+
+и выполняется запрос пароля пользователя `sshuser`.
+
+---
+
+В результате настроены следующие статические трансляции:
+
+```text
+HQ-RTR:8080 -> HQ-SRV:80
+HQ-RTR:2027 -> HQ-SRV:2027
+
+BR-RTR:8080 -> BR-SRV:8080
+BR-RTR:2027 -> BR-SRV:2027
+```
+
+Веб-приложения и SSH-сервисы успешно доступны со стороны внешней сети через адреса маршрутизаторов.
