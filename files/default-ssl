@@ -1,0 +1,36 @@
+server {
+    listen 443 ssl;
+    server_name web.au-team.irpo;
+
+    ssl_certificate /etc/nginx/ssl/web.au-team.irpo.crt;
+    ssl_certificate_key /etc/nginx/ssl/web.au-team.irpo.key;
+
+    auth_basic "Restricted";
+    auth_basic_user_file /etc/nginx/.htpasswd;
+
+    location / {
+        proxy_pass http://172.16.1.2:8080;
+
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+
+server {
+    listen 443 ssl;
+    server_name docker.au-team.irpo;
+
+    ssl_certificate /etc/nginx/ssl/docker.au-team.irpo.crt;
+    ssl_certificate_key /etc/nginx/ssl/docker.au-team.irpo.key;
+
+    location / {
+        proxy_pass http://172.16.2.2:8080;
+
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
