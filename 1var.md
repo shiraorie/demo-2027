@@ -3996,3 +3996,38 @@ BR-RTR:2027 -> BR-SRV:2027
 ```
 
 Веб-приложения и SSH-сервисы успешно доступны со стороны внешней сети через адреса маршрутизаторов.
+
+### <p align="center"><b>9. Установка Яндекс Браузера на HQ-CLI</b></p>
+
+По заданию необходимо установить Яндекс Браузер на `HQ-CLI`.
+
+Устанавливаем пакет:
+
+```bash
+apt-get update
+apt-get install -y yandex-browser-stable
+```
+
+Проверяем установленную версию:
+
+```bash
+yandex-browser-stable --version
+```
+
+<p align="center">
+  <img src="images/1var/yandex-version.png" width="800" />
+</p>
+
+Для запуска браузера на данном стенде используем:
+
+```bash
+yandex-browser-stable --no-sandbox
+```
+
+<p align="center">
+  <img src="images/1var/yandex.png" width="900" />
+</p>
+
+Если окно Яндекс Браузера успешно открывается, установка выполнена корректно.
+
+В результате Яндекс Браузер установлен и запускается на `HQ-CLI`.
