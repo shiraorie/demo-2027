@@ -4565,3 +4565,56 @@ https://docker.au-team.irpo
 - web-based аутентификация для `web.au-team.irpo` сохранена;
 - корневой сертификат добавлен в доверенные на `HQ-CLI`;
 - оба веб-сервиса открываются по HTTPS без предупреждений браузера.
+
+### <p align="center"><b>5. Настройка atop на HQ-SRV</b></p>
+
+Устанавливаем `atop`:
+
+```bash
+apt update
+apt install -y atop
+```
+
+Открываем конфигурационный файл:
+
+```bash
+nano /etc/default/atop
+```
+
+По умолчанию значение интервала составляет `600` секунд. По заданию необходимо установить интервал сбора данных 7 минут, поэтому изменяем:
+
+```text
+LOGINTERVAL=420
+```
+
+Остальные параметры оставляем без изменений:
+
+```text
+LOGOPTS=""
+LOGINTERVAL=420
+LOGGENERATIONS=28
+LOGPATH=/var/log/atop
+```
+
+<p align="center">
+  <img src="images/1var/interval-atop.png" width="900" />
+</p>
+
+Применяем изменения:
+
+```bash
+systemctl enable --now atop
+systemctl restart atop
+```
+
+Проверяем создание журнала:
+
+```bash
+ls -lh /var/log/atop/
+```
+
+<p align="center">
+  <img src="images/1var/journal-atop.png" width="900" />
+</p>
+
+В результате `atop` ведёт непрерывный мониторинг состояния `HQ-SRV` с интервалом 420 секунд, то есть 7 минут.
