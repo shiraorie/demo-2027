@@ -1,0 +1,16 @@
+---
+- name: Inventory HQ-SRV and HQ-CLI
+  hosts:
+    - hq-srv
+    - hq-cli
+  gather_facts: yes
+
+  tasks:
+    - name: Create PC inventory report
+      delegate_to: localhost
+      copy:
+        dest: "/etc/ansible/PC-INFO/{{ ansible_hostname }}.yml"
+        content: |
+          ---
+          hostname: "{{ ansible_hostname }}"
+          ip_address: "{{ ansible_default_ipv4.address }}"
