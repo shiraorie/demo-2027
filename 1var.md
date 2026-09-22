@@ -4822,3 +4822,63 @@ fail2ban-client get sshd bantime
 </p>
 
 В результате на `HQ-SRV` настроен `fail2ban` для защиты SSH на порту `2027`. После 3 неуспешных попыток аутентификации адрес блокируется на 60 секунд.
+
+### <p align="center"><b>9. Резервное копирование каталога /etc с HQ-SRV на HQ-CLI</b></p>
+
+В качестве аналога «Кибер Бэкап 18» используется `Bacula`.
+
+На `HQ-CLI` настраиваем узел хранения и каталог `/backup`:
+
+```bash
+curl -o /root/bacula-hq-cli.sh \
+https://raw.githubusercontent.com/shiraorie/demo-2027/main/files/bacula-hq-cli.sh
+
+chmod +x /root/bacula-hq-cli.sh
+/root/bacula-hq-cli.sh 192.168.20.2
+```
+
+На `HQ-SRV` устанавливаем и настраиваем сервер резервного копирования и агент:
+
+```bash
+curl -o /root/bacula-hq-srv.sh \
+https://raw.githubusercontent.com/shiraorie/demo-2027/main/files/bacula-hq-srv.sh
+
+chmod +x /root/bacula-hq-srv.sh
+/root/bacula-hq-srv.sh 192.168.100.2 192.168.20.2
+```
+
+Запускаем резервное копирование каталога `/etc`:
+
+```bash
+curl -o /root/bacula-run-backup.sh \
+https://raw.githubusercontent.com/shiraorie/demo-2027/main/files/bacula-run-backup.sh
+
+chmod +x /root/bacula-run-backup.sh
+/root/bacula-run-backup.sh
+```
+
+Проверяем результат на `HQ-SRV`:
+
+```bash
+echo "list jobs" | /opt/bacula/sbin/bconsole -c /opt/bacula/etc/bconsole.conf
+```
+
+Успешно завершённое задание имеет статус `T`.
+
+<p align="center">
+  <img src="images/1var/bacula-jobs.png" width="900" />
+</p>
+
+На `HQ-CLI` проверяем наличие резервной копии:
+
+```bash
+ls -lh /backup
+```
+
+В каталоге должен находиться том `Backup001`.
+
+<p align="center">
+  <img src="images/1var/bacula-backup.png" width="900" />
+</p>
+
+> **Примечание:** резервное копирование выполняется по схеме `HQ-SRV:/etc → HQ-CLI:/backup`.
