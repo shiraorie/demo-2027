@@ -4618,3 +4618,76 @@ ls -lh /var/log/atop/
 </p>
 
 В результате `atop` ведёт непрерывный мониторинг состояния `HQ-SRV` с интервалом 420 секунд, то есть 7 минут.
+
+### <p align="center"><b>6. Настройка принт-сервера CUPS на HQ-SRV</b></p>
+
+На `HQ-SRV` устанавливаем CUPS и виртуальный PDF-принтер:
+
+```bash
+apt update
+apt install -y cups cups-pdf
+```
+
+Включаем службу:
+
+```bash
+systemctl enable --now cups
+```
+
+Разрешаем удалённый доступ к CUPS и публикацию принтеров:
+
+```bash
+cupsctl --remote-any
+cupsctl --share-printers
+```
+
+Публикуем виртуальный принтер `PDF`:
+
+```bash
+lpadmin -p PDF -o printer-is-shared=true
+systemctl restart cups
+```
+
+<p align="center">
+  <img src="images/1var/cups-ctl.png" width="900" />
+</p>
+
+На `HQ-CLI` устанавливаем CUPS:
+
+```bash
+apt-get update
+apt-get install -y cups
+```
+
+Создаём очередь для сетевого принтера, опубликованного на `HQ-SRV`:
+
+```bash
+lpadmin -p HQ-PDF \
+  -E \
+  -v ipp://192.168.100.2:631/printers/PDF \
+  -m raw
+```
+
+Назначаем сетевой PDF-принтер принтером по умолчанию:
+
+```bash
+lpoptions -d HQ-PDF
+```
+
+Проверяем URI принтера:
+
+```bash
+lpstat -v
+```
+
+Проверяем принтер по умолчанию:
+
+```bash
+lpstat -d
+```
+
+<p align="center">
+  <img src="images/1var/cups-pdf.png" width="900" />
+</p>
+
+В результате на `HQ-SRV` опубликован виртуальный PDF-принтер, а на `HQ-CLI` подключён сетевой принтер `HQ-PDF` и назначен принтером по умолчанию.
