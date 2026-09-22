@@ -1,5 +1,6 @@
 #!/bin/bash
 set -e
+
 BC="/opt/bacula/sbin/bconsole"
 CONF="/opt/bacula/etc/bconsole.conf"
 
@@ -9,5 +10,5 @@ run job=Backup-HQ-SRV-ETC yes
 quit
 EOF
 
-sleep 5
+sleep 3
 echo "list jobs" | "$BC" -c "$CONF"
