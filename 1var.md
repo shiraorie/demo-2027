@@ -3339,3 +3339,251 @@ SUCCESS
 без строк `[WARNING]` и ошибок.
 
 В результате `BR-SRV` настроен как управляющий узел Ansible, а все четыре устройства успешно доступны из inventory.
+
+### <p align="center"><b>6. Развертывание приложения в Docker на BR-SRV</b></p>
+
+По заданию на `BR-SRV` необходимо развернуть стек контейнеров:
+
+- контейнер с базой данных `db`;
+- контейнер с веб-приложением `testapp`;
+- база данных — `testdb`;
+- пользователь базы данных — `test`;
+- пароль — `Passw0rd`;
+- приложение должно быть доступно извне через порт `8080`.
+
+Для развертывания используются образы:
+
+```text
+site_latest.tar
+mariadb_latest.tar
+```
+
+расположенные в каталоге `docker` на образе `Additional.iso`.
+
+---
+
+### <p align="center"><b>Установка Docker</b></p>
+
+На `BR-SRV` устанавливаем Docker и Docker Compose:
+
+```bash
+apt update
+apt install -y docker.io docker-compose
+```
+
+Запускаем Docker и добавляем его в автозагрузку:
+
+```bash
+systemctl enable --now docker
+```
+
+Проверяем:
+
+```bash
+docker --version
+docker-compose --version
+```
+
+---
+
+### <p align="center"><b>Монтирование Additional.iso</b></p>
+
+Создаём каталог:
+
+```bash
+mkdir -p /mnt/additional
+```
+
+Монтируем образ:
+
+```bash
+mount /dev/sr0 /mnt/additional
+```
+
+Проверяем содержимое:
+
+```bash
+find /mnt/additional -maxdepth 2 -type f
+```
+
+В каталоге `docker` должны присутствовать образы:
+
+```text
+/mnt/additional/docker/site_latest.tar
+/mnt/additional/docker/mariadb_latest.tar
+```
+
+---
+
+### <p align="center"><b>Импорт Docker-образов</b></p>
+
+Загружаем образ веб-приложения:
+
+```bash
+docker load < /mnt/additional/docker/site_latest.tar
+```
+
+Загружаем образ MariaDB:
+
+```bash
+docker load < /mnt/additional/docker/mariadb_latest.tar
+```
+
+<p align="center">
+  <img src="images/1var/docker-load.png" width="900" />
+</p>
+
+Проверяем загруженные образы:
+
+```bash
+docker images
+```
+
+После загрузки должны присутствовать образы:
+
+```text
+site:latest
+mariadb:latest
+```
+
+---
+
+### <p align="center"><b>Получение compose.yaml</b></p>
+
+Устанавливаем утилиту `curl`:
+
+```bash
+apt update
+apt install -y curl
+```
+
+Скачиваем готовый файл `compose.yaml` из репозитория:
+
+```bash
+curl -o /root/compose.yaml https://raw.githubusercontent.com/shiraorie/demo-2027/main/files/compose.yaml
+```
+
+Проверяем содержимое:
+
+```bash
+cat /root/compose.yaml
+```
+
+Файл содержит настройки контейнеров `db` и `testapp`, базу `testdb`, пользователя `test` и пароль `Passw0rd`.
+
+<p align="center">
+  <img src="images/1var/compose-yaml.png" width="850" />
+</p>
+
+---
+
+### <p align="center"><b>Исправление ошибки AppArmor</b></p>
+
+> **Примечание:**
+> Если при запуске контейнеров появляется ошибка:
+
+```text
+Could not check if docker-default AppArmor profile was loaded
+```
+
+монтируем `securityfs`:
+
+```bash
+mount -t securityfs securityfs /sys/kernel/security
+```
+
+После этого перезапускаем Docker:
+
+```bash
+systemctl restart docker
+```
+
+---
+
+### <p align="center"><b>Запуск контейнеров</b></p>
+
+Переходим в каталог с `compose.yaml`:
+
+```bash
+cd /root
+```
+
+Если контейнеры или база уже запускались ранее, удаляем старый стек вместе с volume:
+
+```bash
+docker-compose down -v
+```
+
+> **ВНИМАНИЕ!**
+> Ключ `-v` удаляет данные старой базы данных. Используйте его при повторной настройке стенда.
+
+Запускаем стек:
+
+```bash
+docker-compose up -d
+```
+
+Проверяем:
+
+```bash
+docker-compose ps
+```
+
+В результате оба контейнера должны иметь состояние `Up`:
+
+```text
+db        Up
+testapp   Up
+```
+
+У контейнера `testapp` должен быть опубликован порт:
+
+```text
+0.0.0.0:8080->8000/tcp
+```
+
+---
+
+### <p align="center"><b>Проверка базы данных</b></p>
+
+Проверяем подключение к базе `testdb`:
+
+```bash
+docker exec db mariadb -utest -p'Passw0rd' testdb -e 'SELECT 1;'
+```
+
+При успешном подключении команда должна вернуть:
+
+```text
+1
+1
+```
+
+---
+
+### <p align="center"><b>Проверка веб-приложения</b></p>
+
+На `HQ-CLI` открываем браузер и переходим по адресу:
+
+```text
+http://192.168.200.2:8080
+```
+
+<p align="center">
+  <img src="images/1var/docker-testapp-browser.png" width="900" />
+</p>
+
+Если веб-страница открывается, контейнерное приложение работает корректно и доступно из сети через порт `8080`.
+
+---
+
+В результате:
+
+- на `BR-SRV` установлен и запущен Docker;
+- загружены образы `site:latest` и `mariadb:latest`;
+- создан контейнер базы данных `db`;
+- создан контейнер веб-приложения `testapp`;
+- используется база данных `testdb`;
+- пользователь базы данных — `test`;
+- пароль — `Passw0rd`;
+- приложение доступно по адресу `http://192.168.200.2:8080`.
