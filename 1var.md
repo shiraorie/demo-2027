@@ -4691,3 +4691,40 @@ lpstat -d
 </p>
 
 В результате на `HQ-SRV` опубликован виртуальный PDF-принтер, а на `HQ-CLI` подключён сетевой принтер `HQ-PDF` и назначен принтером по умолчанию.
+
+### <p align="center"><b>7. Инвентаризация HQ-SRV и HQ-CLI через Ansible</b></p>
+
+На `BR-SRV` создаём каталог для отчётов:
+
+```bash
+mkdir -p /etc/ansible/PC-INFO
+```
+
+Скачиваем подготовленный плейбук:
+
+```bash
+curl -o /etc/ansible/inventory.yml https://raw.githubusercontent.com/shiraorie/demo-2027/main/files/inventory.yml
+```
+
+Запускаем:
+
+```bash
+ansible-playbook /etc/ansible/inventory.yml
+```
+
+После выполнения проверяем созданные отчёты:
+
+```bash
+ls -la /etc/ansible/PC-INFO
+```
+
+```bash
+cat /etc/ansible/PC-INFO/hq-srv.yml
+cat /etc/ansible/PC-INFO/hq-cli.yml
+```
+
+<p align="center">
+  <img src="images/1var/ls-playboocvk.png" width="900" />
+</p>
+
+В результате для `HQ-SRV` и `HQ-CLI` созданы отчёты в формате `.yml`, содержащие имя компьютера и его IP-адрес.
