@@ -1,0 +1,29 @@
+services:
+  database:
+    container_name: 'db'
+    image: mariadb
+    restart: always
+    environment:
+      MARIADB_DATABASE: 'testdb'
+      MARIADB_USER: 'test'
+      MARIADB_PASSWORD: 'Passw0rd'
+      MARIADB_ROOT_PASSWORD: 'Passw0rd'
+    volumes:
+      - mariadb:/var/lib/mysql
+
+  app:
+    container_name: 'testapp'
+    image: site
+    restart: always
+    ports:
+      - "8080:8000"
+    environment:
+      DB_HOST: "db"
+      DB_PORT: "3306"
+      DB_TYPE: 'maria'
+      DB_NAME: 'testdb'
+      DB_USER: 'test'
+      DB_PASS: 'Passw0rd'
+
+volumes:
+  mariadb:
