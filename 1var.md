@@ -175,7 +175,7 @@ hostnamectl set-hostname br-fw.au-team.irpo; exec bash
 Для варианта 1 будем использовать следующую таблицу адресации:
 
 <p align="center">
-  <img src="images/1var/1. Таблица IP-адресов.png" width="700" />
+  <img src="images\1var\таблица ip.png" width="700" />
 </p>
 
 > **Примечание:**
@@ -213,6 +213,9 @@ iface ens19 inet manual
 
 ---
 
+```bash
+systemctl restart networking
+```
 <p align="center"><b>BR-RTR</b></p>
 
 Открываем конфигурацию сети:
@@ -240,6 +243,9 @@ iface ens19 inet static
 
 ---
 
+```bash
+systemctl restart networking
+```
 <p align="center"><b>HQ-SRV</b></p>
 
 Открываем конфигурацию сети:
@@ -263,6 +269,10 @@ iface ens18 inet static
 
 ---
 
+```bash
+systemctl restart networking
+```
+
 <p align="center"><b>BR-SRV</b></p>
 
 Открываем конфигурацию сети:
@@ -285,6 +295,10 @@ iface ens18 inet static
 </p>
 
 ---
+
+```bash
+systemctl restart networking
+```
 
 <p align="center"><b>BR-FW</b></p>
 
@@ -312,6 +326,10 @@ iface ens19 inet static
 </p>
 
 ---
+
+```bash
+systemctl restart networking
+```
 
 <p align="center"><b>HQ-CLI</b></p>
 
@@ -480,6 +498,7 @@ nft -c -f /etc/nftables.conf
 
 ```bash
 nft -f /etc/nftables.conf
+/etc/nftables.conf
 ```
 
 Добавляем службу в автозагрузку:
@@ -634,6 +653,12 @@ iface gre1 inet static
   <img src="images/1var/gre-hq-rtr.png" width="600" />
 </p>
 
+После изменения конфигурации перезапускаем сеть:
+
+```bash
+systemctl restart networking
+```
+
 <p align="center"><b>BR-RTR</b></p>
 
 Открываем:
@@ -757,11 +782,44 @@ table inet nat {
 }
 ```
 
+
 <p align="center">
   <img src="images/1var/nat-hq-rtr.png" width="600" />
 </p>
 
 ---
+
+Проверяем конфигурацию:
+
+```bash
+nft -c -f /etc/nftables.conf
+```
+
+Если ошибок нет, применяем:
+
+```bash
+nft -f /etc/nftables.conf
+/etc/nftables.conf
+```
+
+Добавляем службу в автозагрузку:
+
+```bash
+systemctl enable nftables
+```
+
+Перезапускаем:
+
+```bash
+systemctl restart nftables
+```
+
+Проверяем правила:
+
+```bash
+nft list ruleset
+```
+
 
 <p align="center"><b>BR-RTR</b></p>
 
@@ -808,6 +866,38 @@ table inet nat {
 </p>
 
 ---
+
+Проверяем конфигурацию:
+
+```bash
+nft -c -f /etc/nftables.conf
+```
+
+Если ошибок нет, применяем:
+
+```bash
+nft -f /etc/nftables.conf
+/etc/nftables.conf
+```
+
+Добавляем службу в автозагрузку:
+
+```bash
+systemctl enable nftables
+```
+
+Перезапускаем:
+
+```bash
+systemctl restart nftables
+```
+
+Проверяем правила:
+
+```bash
+nft list ruleset
+```
+
 
 ### <p align="center"><b>BR-FW</b></p>
 
